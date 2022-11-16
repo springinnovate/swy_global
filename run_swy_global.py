@@ -112,18 +112,27 @@ def main():
         LOGGER.debug(scenario_config)
 
     for scenario_config, scenario_id in config_scenario_list:
-        habitat_map = eval(scenario_config[HABITAT_MAP_KEY])
         local_data_path_map = {
-            'wwiii': scenario_config['WWIII_PATH'],
-            'slr': scenario_config['SLR_PATH'],
-            'geomorphology': scenario_config['GEOMORPHOLOGY_PATH'],
-            'dem': scenario_config['DEM_PATH'],
-            'lulc': scenario_config['LULC_PATH'],
-            'global_polygon': scenario_config['GLOBAL_POLYGON_PATH'],
-            'buffer_vector': scenario_config['BUFFER_VECTOR_PATH'],
-            'shore_grid': scenario_config['SHORE_GRID_PATH'],
+            'workspace_dir': scenario_config['workspace_dir'],
+            'results_suffix': scenario_config['results_suffix'],
+            'threshold_flow_accumulation': float(scenario_config['threshold_flow_accumulation']),
+            'et0_dir': scenario_config['et0_dir'],
+            'precip_dir': scenario_config['precip_dir'],
+            'dem_raster_path': scenario_config['dem_raster'],
+            'lulc_raster_path': scenario_config['lulc_raster'],
+            'soil_group_path': scenario_config['soil_group_path'],
+            'aoi_path': scenario_config['aoi_vector'],
+            'biophysical_table_path': scenario_config['biophysical_table'],
+            'rain_events_table_path': scenario_config['rain_events_table_path'],
+            'monthly_alpha': False,
+            'alpha_m': 1/12,
+            'beta_i': scenario_config['beta_i'],
+            'gamma': scenario_config['gamma'],
+            'l_path': scenario_config['l_path'],
+            'climate_zone_table_path': scenario_config['climate_zone_table_path'],
+            'climate_zone_raster_path': scenario_config['climate_zone_raster_path'],
         }
-        LOGGER.debug(habitat_map)
+
         LOGGER.debug(local_data_path_map)
 
 
