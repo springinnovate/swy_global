@@ -109,6 +109,7 @@ def main():
         scenario_config, scenario_id = _process_scenario_ini(
             scenario_config_path)
         config_scenario_list.append((scenario_config, scenario_id))
+        LOGGER.debug(scenario_config)
 
     for scenario_config, scenario_id in config_scenario_list:
         habitat_map = eval(scenario_config[HABITAT_MAP_KEY])
@@ -124,7 +125,6 @@ def main():
         }
         LOGGER.debug(habitat_map)
         LOGGER.debug(local_data_path_map)
-
 
 
 if __name__ == '__main__':
