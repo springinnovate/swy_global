@@ -83,11 +83,6 @@ def _process_scenario_ini(scenario_config_path):
                     f'expected a file from "{key}" at "{possible_path}" '
                     f'but file not found')
 
-    for _, _, hab_path in eval(scenario_config[HABITAT_MAP_KEY]).values():
-        if not os.path.exists(hab_path):
-            raise ValueError(
-                f'expected a habitat raster at "{hab_path}" but one not found')
-
     return scenario_config, scenario_id
 
 
@@ -109,28 +104,25 @@ def main():
         scenario_config, scenario_id = _process_scenario_ini(
             scenario_config_path)
         config_scenario_list.append((scenario_config, scenario_id))
-        LOGGER.debug(scenario_config)
 
     for scenario_config, scenario_id in config_scenario_list:
+        LOGGER.debug(f'{scenario_config}:, {scenario_id}')
         local_data_path_map = {
             'workspace_dir': scenario_config['workspace_dir'],
             'results_suffix': scenario_config['results_suffix'],
             'threshold_flow_accumulation': float(scenario_config['threshold_flow_accumulation']),
             'et0_dir': scenario_config['et0_dir'],
             'precip_dir': scenario_config['precip_dir'],
-            'dem_raster_path': scenario_config['dem_raster'],
-            'lulc_raster_path': scenario_config['lulc_raster'],
-            'soil_group_path': scenario_config['soil_group_path'],
-            'aoi_path': scenario_config['aoi_vector'],
-            'biophysical_table_path': scenario_config['biophysical_table'],
+            'dem_raster_path': scenario_config['dem_raster_path'],
+            'lulc_raster_path': scenario_config['lulc_raster_path'],
+            'soil_group_path': scenario_config['soil_hydrologic_group_raster_path'],
+            #'aoi_path': scenario_config['aoi_vector'],
+            'biophysical_table_path': scenario_config['biophysical_table_path'],
             'rain_events_table_path': scenario_config['rain_events_table_path'],
             'monthly_alpha': False,
             'alpha_m': 1/12,
             'beta_i': scenario_config['beta_i'],
             'gamma': scenario_config['gamma'],
-            'l_path': scenario_config['l_path'],
-            'climate_zone_table_path': scenario_config['climate_zone_table_path'],
-            'climate_zone_raster_path': scenario_config['climate_zone_raster_path'],
         }
 
         LOGGER.debug(local_data_path_map)
