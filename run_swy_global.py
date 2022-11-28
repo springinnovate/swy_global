@@ -1,4 +1,5 @@
 """Run SWY globally."""
+import tempfile
 from datetime import datetime
 import argparse
 import collections
@@ -86,6 +87,43 @@ def _process_scenario_ini(scenario_config_path):
     return scenario_config, scenario_id
 
 
+def clip_raster_by_vector(
+        raster_path, vector_path, vector_field, field_value_list,
+        target_raster_path):
+    """Clip and mask raster to vector using tightest bounding box."""
+    temp_dir = os.path.join(
+        os.path.dirname(target_raster_path), 'clip_raster_workspace')
+    os.makedirs(temp_dir, exist_ok=True)
+
+    raster_info = geoprocessing.get_raster_info(raster_path)
+    raster_projection_wkt = raster_info['projection_wkt']
+
+    projected_vector_path = os.path.splitext(os.path.join(
+        temp_dir, os.path.basename(vector_path)))[0] + '.gpkg'
+
+    LOGGER.info(f'reproject vector to {projected_vector_path}')
+    where_filter = f'{vector_field.upper()} IN (' + ', '.join([str(x) for x in field_value_list]) + ')'
+    LOGGER.debug(f'{projected_vector_path} {where_filter}')
+    geoprocessing.reproject_vector(
+        vector_path, raster_projection_wkt, projected_vector_path,
+        where_filter=where_filter, driver_name='GPKG')
+
+    projected_vector_info = geoprocessing.get_vector_info(
+        projected_vector_path)
+
+    target_bb = geoprocessing.merge_bounding_box_list(
+        [raster_info['bounding_box'], projected_vector_info['bounding_box']],
+        'intersection')
+
+    geoprocessing.warp_raster(
+        raster_path, raster_info['pixel_size'], target_raster_path,
+        'near', target_bb=target_bb,
+        vector_mask_options={'mask_vector_path': projected_vector_path},
+        working_dir=os.getcwd())
+    LOGGER.info(f'all done, raster at {target_raster_path}')
+    shutil.rmtree(temp_dir)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Global SWY')
     parser.add_argument(
@@ -107,6 +145,30 @@ def main():
 
     for scenario_config, scenario_id in config_scenario_list:
         LOGGER.debug(f'{scenario_config}:, {scenario_id}')
+
+        local_workspace = f'workspace_swy_{scenario_id}'
+        os.makedirs(local_workspace, exist_ok=True)
+        if 'watershed_subset' in scenario_config:
+            watershed_subset_payload = eval(
+                scenario_config['watershed_subset'])
+            if len(watershed_subset_payload) == 3:
+                (watershed_basename, watershed_field,
+                 watershed_field_id_list) = watershed_subset_payload
+            clipped_dem = os.path.join(local_workspace, os.path.basename(
+                scenario_config['dem_raster_path']))
+            vector_path = os.path.join(
+                scenario_config['watersheds_vector_path'],
+                f'{watershed_basename}.shp')
+
+            clip_raster_by_vector(
+                scenario_config['dem_raster_path'],
+                vector_path, watershed_field, watershed_field_id_list,
+                clipped_dem)
+            return
+        # TODO: extract an AOI
+        # TODO: clip DEM to AOI
+
+
         local_data_path_map = {
             'workspace_dir': scenario_config['workspace_dir'],
             'results_suffix': scenario_config['results_suffix'],
