@@ -14,7 +14,7 @@ import shutil
 import threading
 import time
 
-from inspring import seasonal_water_yield
+from inspring.seasonal_water_yield import seasonal_water_yield
 from ecoshard import geoprocessing
 from ecoshard import taskgraph
 from osgeo import gdal
@@ -89,27 +89,20 @@ def _process_scenario_ini(scenario_config_path):
 
 def clip_raster_by_vector(
         raster_path, vector_path, vector_field, field_value_list,
-        target_raster_path):
+        target_raster_path, target_vector_path):
     """Clip and mask raster to vector using tightest bounding box."""
-    temp_dir = os.path.join(
-        os.path.dirname(target_raster_path), 'clip_raster_workspace')
-    os.makedirs(temp_dir, exist_ok=True)
-
     raster_info = geoprocessing.get_raster_info(raster_path)
     raster_projection_wkt = raster_info['projection_wkt']
 
-    projected_vector_path = os.path.splitext(os.path.join(
-        temp_dir, os.path.basename(vector_path)))[0] + '.gpkg'
-
-    LOGGER.info(f'reproject vector to {projected_vector_path}')
+    LOGGER.info(f'reproject vector to {target_vector_path}')
     where_filter = f'{vector_field.upper()} IN (' + ', '.join([str(x) for x in field_value_list]) + ')'
-    LOGGER.debug(f'{projected_vector_path} {where_filter}')
+    LOGGER.debug(f'{target_vector_path} {where_filter}')
     geoprocessing.reproject_vector(
-        vector_path, raster_projection_wkt, projected_vector_path,
+        vector_path, raster_projection_wkt, target_vector_path,
         where_filter=where_filter, driver_name='GPKG')
 
     projected_vector_info = geoprocessing.get_vector_info(
-        projected_vector_path)
+        target_vector_path)
 
     target_bb = geoprocessing.merge_bounding_box_list(
         [raster_info['bounding_box'], projected_vector_info['bounding_box']],
@@ -118,10 +111,9 @@ def clip_raster_by_vector(
     geoprocessing.warp_raster(
         raster_path, raster_info['pixel_size'], target_raster_path,
         'near', target_bb=target_bb,
-        vector_mask_options={'mask_vector_path': projected_vector_path},
+        vector_mask_options={'mask_vector_path': target_vector_path},
         working_dir=os.getcwd())
     LOGGER.info(f'all done, raster at {target_raster_path}')
-    shutil.rmtree(temp_dir)
 
 
 def main():
@@ -160,14 +152,14 @@ def main():
                 scenario_config['watersheds_vector_path'],
                 f'{watershed_basename}.shp')
 
+            clipped_vector_path = os.path.join(
+                local_workspace, f'clipped_{os.path.basename(os.path.splitext(vector_path)[0])}.gpkg')
             clip_raster_by_vector(
                 scenario_config['dem_raster_path'],
                 vector_path, watershed_field, watershed_field_id_list,
-                clipped_dem)
-            return
-        # TODO: extract an AOI
-        # TODO: clip DEM to AOI
-
+                clipped_dem, clipped_vector_path)
+            scenario_config['dem_raster_path'] = clipped_dem
+            scenario_config['aoi_vector'] = clipped_vector_path
 
         local_data_path_map = {
             'workspace_dir': scenario_config['workspace_dir'],
@@ -178,16 +170,20 @@ def main():
             'dem_raster_path': scenario_config['dem_raster_path'],
             'lulc_raster_path': scenario_config['lulc_raster_path'],
             'soil_group_path': scenario_config['soil_hydrologic_group_raster_path'],
-            #'aoi_path': scenario_config['aoi_vector'],
+            'aoi_path': scenario_config['aoi_vector'],
             'biophysical_table_path': scenario_config['biophysical_table_path'],
             'rain_events_table_path': scenario_config['rain_events_table_path'],
             'monthly_alpha': False,
             'alpha_m': 1/12,
             'beta_i': scenario_config['beta_i'],
             'gamma': scenario_config['gamma'],
+            'user_defined_local_recharge': None,
+            'user_defined_climate_zones': None,
+            'lucode_field': scenario_config['lucode_field'],
         }
 
         LOGGER.debug(local_data_path_map)
+        seasonal_water_yield.execute(local_data_path_map)
 
 
 if __name__ == '__main__':
