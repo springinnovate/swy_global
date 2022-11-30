@@ -567,40 +567,44 @@ def _warp_raster_stack(
     for raster_path, warped_raster_path, resample_method in zip(
             base_raster_path_list, warped_raster_path_list,
             resample_method_list):
-        working_dir = os.path.dirname(warped_raster_path)
-        # first clip to clip projection
-        clipped_raster_path = '%s_clipped%s' % os.path.splitext(
-            warped_raster_path)
         task_graph.add_task(
-            func=geoprocessing.warp_raster,
+            func=_clip_and_warp,
             args=(
-                raster_path, clip_pixel_size, clipped_raster_path,
-                resample_method),
-            kwargs={
-                'target_bb': clip_bounding_box,
-                'target_projection_wkt': clip_projection_wkt,
-                'working_dir': working_dir
-            },
-            target_path_list=[clipped_raster_path],
-            task_name=f'clipping {clipped_raster_path}')
-
-        # second, warp and mask to vector
-        watershed_projection_wkt = geoprocessing.get_vector_info(
-            watershed_clip_vector_path)['projection_wkt']
-
-        vector_mask_options = {'mask_vector_path': watershed_clip_vector_path}
-        task_graph.add_task(
-            func=geoprocessing.warp_raster,
-            args=(
-                clipped_raster_path, (target_pixel_size, -target_pixel_size),
-                warped_raster_path, resample_method,),
-            kwargs={
-                'target_projection_wkt': watershed_projection_wkt,
-                'vector_mask_options': vector_mask_options,
-                'working_dir': working_dir,
-            },
+                raster_path, clip_bounding_box, clip_pixel_size, resample_method,
+                clip_projection_wkt, watershed_clip_vector_path, target_pixel_size,
+                warped_raster_path),
             target_path_list=[warped_raster_path],
-            task_name=f'warping {warped_raster_path}')
+            task_name=f'clip and warp to {warped_raster_path}')
+
+
+def _clip_and_warp(
+        base_raster_path, clip_bounding_box, clip_pixel_size, resample_method,
+        clip_projection_wkt, watershed_clip_vector_path, target_pixel_size,
+        warped_raster_path):
+    working_dir = os.path.dirname(warped_raster_path)
+    # first clip to clip projection
+    clipped_raster_path = '%s_clipped%s' % os.path.splitext(
+        warped_raster_path)
+    geoprocessing.warp_raster(
+        base_raster_path, clip_pixel_size, clipped_raster_path,
+        resample_method, **{
+            'target_bb': clip_bounding_box,
+            'target_projection_wkt': clip_projection_wkt,
+            'working_dir': working_dir
+        })
+
+    # second, warp and mask to vector
+    watershed_projection_wkt = geoprocessing.get_vector_info(
+        watershed_clip_vector_path)['projection_wkt']
+    vector_mask_options = {'mask_vector_path': watershed_clip_vector_path}
+    geoprocessing.warp_raster(
+        clipped_raster_path, (target_pixel_size, -target_pixel_size),
+        warped_raster_path, resample_method, **{
+            'target_projection_wkt': watershed_projection_wkt,
+            'vector_mask_options': vector_mask_options,
+            'working_dir': working_dir,
+        })
+    os.remove(clipped_raster_path)
 
 
 def _execute_swy_job(
@@ -664,6 +668,8 @@ def _execute_swy_job(
                     "Ambiguous set of files found for month %d: %s" %
                     (month_index, file_list))
             month_based_rasters[data_type].append(file_list[0])
+    LOGGER.debug(f'month based rasters: {month_based_rasters}')
+    return
 
     resample_method_list = ['bilinear']*(len(path_list)-1) + ['mode']
 
