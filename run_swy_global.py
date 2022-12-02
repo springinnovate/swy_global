@@ -19,6 +19,7 @@ from osgeo import gdal
 from osgeo import ogr
 from osgeo import osr
 
+gdal.UseExceptions()
 
 logging.basicConfig(
     level=logging.DEBUG,
