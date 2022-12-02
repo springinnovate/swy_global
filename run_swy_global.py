@@ -783,7 +783,7 @@ def main():
         global_wgs84_bb = _calculate_intersecting_bounding_box(
             [scenario_config[key] for key in [
                 'dem_raster_path', 'lulc_raster_path',
-                'soil_group_path']] + [eval(scenario_config['GLOBAL_BB'])])
+                'soil_hydrologic_group_raster_path']])
 
         watershed_subset_task = task_graph.add_task(
             func=_batch_into_watershed_subsets,
