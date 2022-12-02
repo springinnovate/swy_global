@@ -273,8 +273,9 @@ def _batch_into_watershed_subsets(
                     watershed_bb[2] > global_bb[2] or
                     watershed_bb[1] > global_bb[3] or
                     watershed_bb[3] < global_bb[1]):
-                LOGGER.warn(
-                    f'{watershed_bb} is on a dangerous boundary so dropping')
+                # LOGGER.warn(
+                #     f'{watershed_bb} is on a dangerous boundary so dropping')
+                # drop because it's outside of the BB
                 watershed_fid_index[job_id][0].pop()
                 continue
             watershed_fid_index[job_id][1].append(watershed_bb)
@@ -283,7 +284,6 @@ def _batch_into_watershed_subsets(
         watershed_geom = None
         watershed_feature = None
 
-        LOGGER.debug(f'here is the watershe fid index list {watershed_fid_index}')
         for (job_id, epsg), (fid_list, watershed_envelope_list, area) in \
                 sorted(
                     watershed_fid_index.items(), key=lambda x: x[1][-1],
@@ -292,7 +292,7 @@ def _batch_into_watershed_subsets(
                 raise ValueError(f'{job_id} already processed')
             if len(watershed_envelope_list) < 3 and area < 1e-6:
                 # it's too small to process
-                LOGGER.debug(f'TOPOO AMSKK TO PROCESS {watershed_envelope_list} {area}')
+                #LOGGER.debug(f'TOPOO AMSKK TO PROCESS {watershed_envelope_list} {area}')
                 continue
             job_id_set.add(job_id)
 
@@ -664,7 +664,7 @@ def _execute_swy_job(
     local_precip_dir = os.path.join(clipped_data_dir, 'local_precip')
     month_based_rasters = collections.defaultdict(list)
     for month_index in range(1, 13):
-        month_file_match = re.compile(r'.*[^\d]0?%d\.[^.]+$' % month_index)
+        month_file_match = re.compile(r'.*[^\d]0?%d\.[^.]+tif$' % month_index)
         for data_type, dir_path in [
                 ('et0', model_args['et0_dir']),
                 ('Precip', model_args['precip_dir'])]:
