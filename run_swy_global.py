@@ -833,6 +833,18 @@ def main():
                 model_args['workspace_dir'], 'L_sum_avail.tif'),
             "QF.tif": os.path.join(
                 model_args['workspace_dir'], 'QF.tif'),
+            os.path.join('intermediate_outputs', 'qf_1.tif'): os.path.join(model_args['workspace_dir'], 'qf_1.tif'),
+            os.path.join('intermediate_outputs', 'qf_2.tif'): os.path.join(model_args['workspace_dir'], 'qf_2.tif'),
+            os.path.join('intermediate_outputs', 'qf_3.tif'): os.path.join(model_args['workspace_dir'], 'qf_3.tif'),
+            os.path.join('intermediate_outputs', 'qf_4.tif'): os.path.join(model_args['workspace_dir'], 'qf_4.tif'),
+            os.path.join('intermediate_outputs', 'qf_5.tif'): os.path.join(model_args['workspace_dir'], 'qf_5.tif'),
+            os.path.join('intermediate_outputs', 'qf_6.tif'): os.path.join(model_args['workspace_dir'], 'qf_6.tif'),
+            os.path.join('intermediate_outputs', 'qf_7.tif'): os.path.join(model_args['workspace_dir'], 'qf_7.tif'),
+            os.path.join('intermediate_outputs', 'qf_8.tif'): os.path.join(model_args['workspace_dir'], 'qf_8.tif'),
+            os.path.join('intermediate_outputs', 'qf_9.tif'): os.path.join(model_args['workspace_dir'], 'qf_9.tif'),
+            os.path.join('intermediate_outputs', 'qf_10.tif'): os.path.join(model_args['workspace_dir'], 'qf_10.tif'),
+            os.path.join('intermediate_outputs', 'qf_11.tif'): os.path.join(model_args['workspace_dir'], 'qf_11.tif'),
+            os.path.join('intermediate_outputs', 'qf_12.tif'): os.path.join(model_args['workspace_dir'], 'qf_12.tif'),
         }
         keep_intermediate_files = True
         _run_swy(
