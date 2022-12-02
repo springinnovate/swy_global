@@ -563,10 +563,10 @@ def _watersheds_intersect(wgs84_bb, watersheds_path):
 
 
 def _warp_raster_stack(
-        task_graph, base_raster_path_list, warped_raster_path_list,
+        base_raster_path_list, warped_raster_path_list,
         resample_method_list, clip_pixel_size, target_pixel_size,
         clip_bounding_box, clip_projection_wkt, watershed_clip_vector_path):
-    """Do an align of all the rasters but use a taskgraph to do it.
+    """Do an align of all the rasters.
 
     Arguments are same as geoprocessing.align_and_resize_raster_stack.
     """
@@ -574,15 +574,10 @@ def _warp_raster_stack(
             base_raster_path_list, warped_raster_path_list,
             resample_method_list):
         LOGGER.debug(f'warp {raster_path} to {warped_raster_path}')
-        task_graph.add_task(
-            func=_clip_and_warp,
-            args=(
-                raster_path, clip_bounding_box, clip_pixel_size, resample_method,
-                clip_projection_wkt, watershed_clip_vector_path, target_pixel_size,
-                warped_raster_path),
-            target_path_list=[warped_raster_path],
-            task_name=f'clip and warp to {warped_raster_path}')
-    task_graph.join()
+        _clip_and_warp(
+            raster_path, clip_bounding_box, clip_pixel_size, resample_method,
+            clip_projection_wkt, watershed_clip_vector_path, target_pixel_size,
+            warped_raster_path)
 
 
 def _clip_and_warp(
@@ -642,7 +637,6 @@ def _execute_swy_job(
             stitch_queue.put((None, 1))
         return
 
-    local_taskgraph = taskgraph.TaskGraph(local_workspace_dir, -1)
     dem_pixel_size = geoprocessing.get_raster_info(
         model_args['dem_raster_path'])['pixel_size']
 
@@ -711,11 +705,9 @@ def _execute_swy_job(
 
     # re-warp stuff we already did
     _warp_raster_stack(
-        local_taskgraph, base_raster_path_list, warped_raster_path_list,
+        base_raster_path_list, warped_raster_path_list,
         resample_method_list, dem_pixel_size, target_pixel_size,
         lat_lng_bb, osr.SRS_WKT_WGS84_LAT_LONG, watersheds_path)
-    local_taskgraph.join()
-    local_taskgraph.close()
 
     model_args['aoi_path'] = watersheds_path
     model_args['prealigned'] = True
