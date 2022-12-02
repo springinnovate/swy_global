@@ -846,7 +846,7 @@ def main():
             os.path.join('intermediate_outputs', 'qf_11.tif'): os.path.join(model_args['workspace_dir'], 'qf_11.tif'),
             os.path.join('intermediate_outputs', 'qf_12.tif'): os.path.join(model_args['workspace_dir'], 'qf_12.tif'),
         }
-        keep_intermediate_files = True
+        keep_intermediate_files = False
         _run_swy(
             task_graph=task_graph,
             model_args=model_args,
