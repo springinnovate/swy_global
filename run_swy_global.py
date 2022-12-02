@@ -448,6 +448,7 @@ def _run_swy(
     # create intersecting bounding box of input data, this ignores the
     # precip and eto rasters, but I think is okay so we can avoid parsing
     # those out here and the lulc will likely drive the AOI
+    model_args = model_args.copy()
     global_wgs84_bb = _calculate_intersecting_bounding_box(
         [model_args[key] for key in [
             'dem_raster_path', 'lulc_raster_path',
@@ -567,6 +568,7 @@ def _warp_raster_stack(
     for raster_path, warped_raster_path, resample_method in zip(
             base_raster_path_list, warped_raster_path_list,
             resample_method_list):
+        LOGGER.debug(f'warp {raster_path} to {warped_raster_path}')
         task_graph.add_task(
             func=_clip_and_warp,
             args=(
@@ -575,6 +577,7 @@ def _warp_raster_stack(
                 warped_raster_path),
             target_path_list=[warped_raster_path],
             task_name=f'clip and warp to {warped_raster_path}')
+    task_graph.join()
 
 
 def _clip_and_warp(
@@ -647,9 +650,18 @@ def _execute_swy_job(
     warped_raster_path_list = [
         os.path.join(clipped_data_dir, os.path.basename(path))
         for path in path_list]
+    resample_method_list = ['bilinear', 'mode', 'mode']
+    LOGGER.debug(path_list)
+    LOGGER.debug(warped_raster_path_list)
 
-    local_et0_dir = os.path.join(local_workspace_dir, 'local_et0')
-    local_precip_dir = os.path.join(local_workspace_dir, 'local_precip')
+    model_args = model_args.copy()
+    model_args['workspace_dir'] = local_workspace_dir
+    model_args['dem_raster_path'] = warped_raster_path_list[0]
+    model_args['soil_group_path'] = warped_raster_path_list[1]
+    model_args['lulc_raster_path'] = warped_raster_path_list[2]
+
+    local_et0_dir = os.path.join(clipped_data_dir, 'local_et0')
+    local_precip_dir = os.path.join(clipped_data_dir, 'local_precip')
     month_based_rasters = collections.defaultdict(list)
     for month_index in range(1, 13):
         month_file_match = re.compile(r'.*[^\d]0?%d\.[^.]+$' % month_index)
@@ -668,23 +680,23 @@ def _execute_swy_job(
                     "Ambiguous set of files found for month %d: %s" %
                     (month_index, file_list))
             month_based_rasters[data_type].append(file_list[0])
-    LOGGER.debug(f'month based rasters: {month_based_rasters}')
-    return
-
-    resample_method_list = ['bilinear']*(len(path_list)-1) + ['mode']
 
     base_raster_path_list = (
-        month_based_rasters['et0'] + month_based_rasters['Precip'] + path_list)
+        path_list + month_based_rasters['et0'] + month_based_rasters['Precip'])
 
     warped_raster_path_list += [
-        os.path.join(local_et0_dir, path)
+        os.path.join(local_et0_dir, os.path.basename(path))
         for path in month_based_rasters['et0']]
+    resample_method_list += ['bilinear']*len(month_based_rasters['et0'])
     os.makedirs(os.path.join(local_et0_dir), exist_ok=True)
+    model_args['et0_dir'] = local_et0_dir
 
     warped_raster_path_list += [
-        os.path.join(local_precip_dir, path)
+        os.path.join(local_precip_dir, os.path.basename(path))
         for path in month_based_rasters['Precip']]
+    resample_method_list += ['bilinear']*len(month_based_rasters['Precip'])
     os.makedirs(os.path.join(local_precip_dir), exist_ok=True)
+    model_args['precip_dir'] = local_precip_dir
 
     watershed_info = geoprocessing.get_vector_info(watersheds_path)
     target_projection_wkt = watershed_info['projection_wkt']
@@ -704,6 +716,26 @@ def _execute_swy_job(
     model_args['reuse_dem'] = True
     model_args['single_outlet'] = geoprocessing.get_vector_info(
         watersheds_path)['feature_count'] == 1
+
+    if 'soil_hydrologic_map' in model_args:
+        map_letter_to_int = {
+            'a': 1, 'b': 2, 'c': 3, 'd': 4
+        }
+        reclass_map = {
+            lucode: map_letter_to_int[soil_code.lower()]
+            for lucode, soil_code in model_args['soil_hydrologic_map'].items()
+        }
+
+        reclass_soil_group_path = os.path.join(
+            local_workspace_dir,
+            f"reclassed_{os.path.basename(model_args['soil_group_path'])}")
+        geoprocessing.reclassify_raster(
+            (model_args['soil_group_path'], 1),
+            reclass_map, reclass_soil_group_path, gdal.GDT_Byte, 0,
+            values_required=True)
+
+        model_args['soil_group_path'] = (
+            reclass_soil_group_path)
 
     # TODO: need to add these special flags so things don't re-warp
 
@@ -747,12 +779,18 @@ def main():
         watershed_subset_dir = os.path.join(
             local_workspace, 'watershed_subset_files')
         os.makedirs(watershed_subset_dir, exist_ok=True)
+
+        global_wgs84_bb = _calculate_intersecting_bounding_box(
+            [scenario_config[key] for key in [
+                'dem_raster_path', 'lulc_raster_path',
+                'soil_group_path']] + [eval(scenario_config['GLOBAL_BB'])])
+
         watershed_subset_task = task_graph.add_task(
             func=_batch_into_watershed_subsets,
             args=(
                 scenario_config['watersheds_vector_path'], 4,
                 watershed_subset_token,
-                eval(scenario_config['GLOBAL_BB']),
+                global_wgs84_bb,
                 watershed_subset_dir,
                 exclusive_watershed_subset),
             target_path_list=[watershed_subset_token],
@@ -761,11 +799,9 @@ def main():
         watershed_subset_list = watershed_subset_task.get()
         LOGGER.debug(watershed_subset_list)
 
-        # TODO: integrate the batch into watershed subsets
-        # SDR doesn't have fert scenarios
         model_args = {
             'workspace_dir': local_workspace,
-            'results_suffix': scenario_config['results_suffix'],
+            'results_suffix': scenario_id,
             'threshold_flow_accumulation': float(scenario_config['threshold_flow_accumulation']),
             'et0_dir': scenario_config['et0_dir'],
             'precip_dir': scenario_config['precip_dir'],
@@ -783,15 +819,20 @@ def main():
             'lucode_field': scenario_config['lucode_field'],
         }
 
+        if 'soil_hydrologic_map' in scenario_config:
+            model_args['soil_hydrologic_map'] = eval(scenario_config['soil_hydrologic_map'])
+
         swy_target_stitch_raster_map = {
-            'sed_export.tif': os.path.join(
-                model_args['workspace_dir'], 'global_sed_export.tif'),
-            'sed_retention.tif': os.path.join(
-                model_args['workspace_dir'], 'global_sed_retention.tif'),
-            'sed_deposition.tif': os.path.join(
-                model_args['workspace_dir'], 'global_sed_deposition.tif'),
-            'usle.tif': os.path.join(
-                model_args['workspace_dir'], 'global_usle.tif'),
+            "B.tif": os.path.join(
+                model_args['workspace_dir'], 'B.tif'),
+            "B_sum.tif": os.path.join(
+                model_args['workspace_dir'], 'B_sum.tif'),
+            "L_avail.tif": os.path.join(
+                model_args['workspace_dir'], 'L_avail.tif'),
+            "L_sum_avail.tif": os.path.join(
+                model_args['workspace_dir'], 'L_sum_avail.tif'),
+            "QF.tif": os.path.join(
+                model_args['workspace_dir'], 'QF.tif'),
         }
         keep_intermediate_files = True
         _run_swy(
