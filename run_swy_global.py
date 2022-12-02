@@ -664,7 +664,7 @@ def _execute_swy_job(
     local_precip_dir = os.path.join(clipped_data_dir, 'local_precip')
     month_based_rasters = collections.defaultdict(list)
     for month_index in range(1, 13):
-        month_file_match = re.compile(r'.*[^\d]0?%d\.[^.]+tif$' % month_index)
+        month_file_match = re.compile(r'.*[^\d]0?%d\.tif$' % month_index)
         for data_type, dir_path in [
                 ('et0', model_args['et0_dir']),
                 ('Precip', model_args['precip_dir'])]:
