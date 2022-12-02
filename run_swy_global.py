@@ -510,10 +510,15 @@ def _run_swy(
 
     # Iterate through each watershed subset and run SDR
     # stitch the results of whatever outputs to whatever global output raster.
+    scheduled_watershed_set = set()
     for index, watershed_path in enumerate(watershed_path_list):
         local_workspace_dir = os.path.join(
             model_args['workspace_dir'], os.path.splitext(
                 os.path.basename(watershed_path))[0])
+        if local_workspace_dir in scheduled_watershed_set:
+            raise ValueError(
+                f'somehow {local_workspace_dir} has been added twice, here is '
+                f'watershed path list {watershed_path_list}')
         task_name = f'sdr {os.path.basename(local_workspace_dir)}'
         task_graph.add_task(
             func=_execute_swy_job,
@@ -710,6 +715,7 @@ def _execute_swy_job(
         resample_method_list, dem_pixel_size, target_pixel_size,
         lat_lng_bb, osr.SRS_WKT_WGS84_LAT_LONG, watersheds_path)
     local_taskgraph.join()
+    local_taskgraph.close()
 
     model_args['aoi_path'] = watersheds_path
     model_args['prealigned'] = True
