@@ -19,6 +19,7 @@ from osgeo import gdal
 from osgeo import ogr
 from osgeo import osr
 
+gdal.UseExceptions()
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -273,8 +274,9 @@ def _batch_into_watershed_subsets(
                     watershed_bb[2] > global_bb[2] or
                     watershed_bb[1] > global_bb[3] or
                     watershed_bb[3] < global_bb[1]):
-                LOGGER.warn(
-                    f'{watershed_bb} is on a dangerous boundary so dropping')
+                # LOGGER.warn(
+                #     f'{watershed_bb} is on a dangerous boundary so dropping')
+                # drop because it's outside of the BB
                 watershed_fid_index[job_id][0].pop()
                 continue
             watershed_fid_index[job_id][1].append(watershed_bb)
@@ -283,7 +285,6 @@ def _batch_into_watershed_subsets(
         watershed_geom = None
         watershed_feature = None
 
-        LOGGER.debug(f'here is the watershe fid index list {watershed_fid_index}')
         for (job_id, epsg), (fid_list, watershed_envelope_list, area) in \
                 sorted(
                     watershed_fid_index.items(), key=lambda x: x[1][-1],
@@ -292,7 +293,7 @@ def _batch_into_watershed_subsets(
                 raise ValueError(f'{job_id} already processed')
             if len(watershed_envelope_list) < 3 and area < 1e-6:
                 # it's too small to process
-                LOGGER.debug(f'TOPOO AMSKK TO PROCESS {watershed_envelope_list} {area}')
+                #LOGGER.debug(f'TOPOO AMSKK TO PROCESS {watershed_envelope_list} {area}')
                 continue
             job_id_set.add(job_id)
 
@@ -510,10 +511,15 @@ def _run_swy(
 
     # Iterate through each watershed subset and run SDR
     # stitch the results of whatever outputs to whatever global output raster.
+    scheduled_watershed_set = set()
     for index, watershed_path in enumerate(watershed_path_list):
         local_workspace_dir = os.path.join(
             model_args['workspace_dir'], os.path.splitext(
                 os.path.basename(watershed_path))[0])
+        if local_workspace_dir in scheduled_watershed_set:
+            raise ValueError(
+                f'somehow {local_workspace_dir} has been added twice, here is '
+                f'watershed path list {watershed_path_list}')
         task_name = f'sdr {os.path.basename(local_workspace_dir)}'
         task_graph.add_task(
             func=_execute_swy_job,
@@ -558,10 +564,10 @@ def _watersheds_intersect(wgs84_bb, watersheds_path):
 
 
 def _warp_raster_stack(
-        task_graph, base_raster_path_list, warped_raster_path_list,
+        base_raster_path_list, warped_raster_path_list,
         resample_method_list, clip_pixel_size, target_pixel_size,
         clip_bounding_box, clip_projection_wkt, watershed_clip_vector_path):
-    """Do an align of all the rasters but use a taskgraph to do it.
+    """Do an align of all the rasters.
 
     Arguments are same as geoprocessing.align_and_resize_raster_stack.
     """
@@ -569,15 +575,10 @@ def _warp_raster_stack(
             base_raster_path_list, warped_raster_path_list,
             resample_method_list):
         LOGGER.debug(f'warp {raster_path} to {warped_raster_path}')
-        task_graph.add_task(
-            func=_clip_and_warp,
-            args=(
-                raster_path, clip_bounding_box, clip_pixel_size, resample_method,
-                clip_projection_wkt, watershed_clip_vector_path, target_pixel_size,
-                warped_raster_path),
-            target_path_list=[warped_raster_path],
-            task_name=f'clip and warp to {warped_raster_path}')
-    task_graph.join()
+        _clip_and_warp(
+            raster_path, clip_bounding_box, clip_pixel_size, resample_method,
+            clip_projection_wkt, watershed_clip_vector_path, target_pixel_size,
+            warped_raster_path)
 
 
 def _clip_and_warp(
@@ -637,7 +638,6 @@ def _execute_swy_job(
             stitch_queue.put((None, 1))
         return
 
-    local_taskgraph = taskgraph.TaskGraph(local_workspace_dir, -1)
     dem_pixel_size = geoprocessing.get_raster_info(
         model_args['dem_raster_path'])['pixel_size']
 
@@ -664,7 +664,7 @@ def _execute_swy_job(
     local_precip_dir = os.path.join(clipped_data_dir, 'local_precip')
     month_based_rasters = collections.defaultdict(list)
     for month_index in range(1, 13):
-        month_file_match = re.compile(r'.*[^\d]0?%d\.[^.]+$' % month_index)
+        month_file_match = re.compile(r'.*[^\d]0?%d\.tif$' % month_index)
         for data_type, dir_path in [
                 ('et0', model_args['et0_dir']),
                 ('Precip', model_args['precip_dir'])]:
@@ -706,10 +706,9 @@ def _execute_swy_job(
 
     # re-warp stuff we already did
     _warp_raster_stack(
-        local_taskgraph, base_raster_path_list, warped_raster_path_list,
+        base_raster_path_list, warped_raster_path_list,
         resample_method_list, dem_pixel_size, target_pixel_size,
         lat_lng_bb, osr.SRS_WKT_WGS84_LAT_LONG, watersheds_path)
-    local_taskgraph.join()
 
     model_args['aoi_path'] = watersheds_path
     model_args['prealigned'] = True
@@ -833,8 +832,20 @@ def main():
                 model_args['workspace_dir'], 'L_sum_avail.tif'),
             "QF.tif": os.path.join(
                 model_args['workspace_dir'], 'QF.tif'),
+            os.path.join('intermediate_outputs', 'qf_1.tif'): os.path.join(model_args['workspace_dir'], 'qf_1.tif'),
+            os.path.join('intermediate_outputs', 'qf_2.tif'): os.path.join(model_args['workspace_dir'], 'qf_2.tif'),
+            os.path.join('intermediate_outputs', 'qf_3.tif'): os.path.join(model_args['workspace_dir'], 'qf_3.tif'),
+            os.path.join('intermediate_outputs', 'qf_4.tif'): os.path.join(model_args['workspace_dir'], 'qf_4.tif'),
+            os.path.join('intermediate_outputs', 'qf_5.tif'): os.path.join(model_args['workspace_dir'], 'qf_5.tif'),
+            os.path.join('intermediate_outputs', 'qf_6.tif'): os.path.join(model_args['workspace_dir'], 'qf_6.tif'),
+            os.path.join('intermediate_outputs', 'qf_7.tif'): os.path.join(model_args['workspace_dir'], 'qf_7.tif'),
+            os.path.join('intermediate_outputs', 'qf_8.tif'): os.path.join(model_args['workspace_dir'], 'qf_8.tif'),
+            os.path.join('intermediate_outputs', 'qf_9.tif'): os.path.join(model_args['workspace_dir'], 'qf_9.tif'),
+            os.path.join('intermediate_outputs', 'qf_10.tif'): os.path.join(model_args['workspace_dir'], 'qf_10.tif'),
+            os.path.join('intermediate_outputs', 'qf_11.tif'): os.path.join(model_args['workspace_dir'], 'qf_11.tif'),
+            os.path.join('intermediate_outputs', 'qf_12.tif'): os.path.join(model_args['workspace_dir'], 'qf_12.tif'),
         }
-        keep_intermediate_files = True
+        keep_intermediate_files = False
         _run_swy(
             task_graph=task_graph,
             model_args=model_args,
