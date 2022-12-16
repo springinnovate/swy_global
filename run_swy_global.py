@@ -9,6 +9,7 @@ import logging
 import multiprocessing
 import os
 import shutil
+import sys
 import threading
 import time
 
@@ -25,7 +26,8 @@ logging.basicConfig(
     level=logging.DEBUG,
     format=(
         '%(asctime)s (%(relativeCreated)d) %(levelname)s %(name)s'
-        ' [%(funcName)s:%(lineno)d] %(message)s'))
+        ' [%(funcName)s:%(lineno)d] %(message)s'),
+    stream=sys.stdout)
 logging.getLogger('ecoshard.taskgraph').setLevel(logging.INFO)
 logging.getLogger('ecoshard.ecoshard').setLevel(logging.INFO)
 logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
@@ -45,12 +47,17 @@ N_TO_BUFFER_STITCH = 10
 
 
 def _clean_workspace_worker(
-        expected_signal_count, stitch_done_queue, keep_intermediate_files):
+        expected_signal_count, workspace_root_dir, stitch_done_queue,
+        keep_intermediate_files):
     """Removes workspaces when completed.
 
     Args:
         expected_signal_count (int): the number of times to be notified
             of a done path before it should be deleted.
+        workspace_root_dir (str): root dir containing workspaces that
+            are passed by the stitch queue, handles cases where stitched
+            files are subdirectories of a workspace but still part of the
+            same workspace.
         stitch_done_queue (queue): will contain directory paths with the
             same directory path appearing `expected_signal_count` times,
             the directory will be removed. Recieving `None` will terminate
@@ -67,14 +74,23 @@ def _clean_workspace_worker(
             if dir_path is None:
                 LOGGER.info('recieved None, quitting clean_workspace_worker')
                 return
-            count_dict[dir_path] += 1
-            if count_dict[dir_path] == expected_signal_count:
+            rel_path = os.path.relpath(dir_path, workspace_root_dir)
+            head, tail = os.path.split(rel_path)
+            if head != '':
+                workspace_dir = head
+            else:
+                workspace_dir = tail
+
+            count_dict[workspace_dir] += 1
+            LOGGER.debug(f'got {count_dict[workspace_dir]} counts for {workspace_dir} to remove waiting for {expected_signal_count}')
+            if count_dict[workspace_dir] == expected_signal_count:
                 LOGGER.info(
-                    f'removing {dir_path} after {count_dict[dir_path]} '
+                    f'removing {workspace_dir} after {count_dict[workspace_dir]} '
                     f'signals')
                 if not keep_intermediate_files:
-                    shutil.rmtree(dir_path)
-                del count_dict[dir_path]
+                    shutil.rmtree(
+                        os.path.join(workspace_root_dir, workspace_dir))
+                del count_dict[workspace_dir]
     except Exception:
         LOGGER.exception('error on clean_workspace_worker')
 
@@ -382,7 +398,7 @@ def stitch_worker(
             if len(stitch_buffer_list) > N_TO_BUFFER_STITCH or payload is None:
                 LOGGER.info(
                     f'about to stitch {n_buffered} into '
-                    f'{target_stitch_raster_path}')
+                    f'{target_stitch_raster_path} with these rasters: [{stitch_buffer_list}]')
                 geoprocessing.stitch_rasters(
                     stitch_buffer_list, ['near']*len(stitch_buffer_list),
                     (target_stitch_raster_path, 1),
@@ -429,7 +445,7 @@ def _run_swy(
         result_suffix):
     """Run SWY
 
-    This function will iterate through the watershed subset list, run the SDR
+    This function will iterate through the watershed subset list, run the SWY
     model on those subwatershed regions, and stitch those data back into a
     global raster.
 
@@ -491,6 +507,7 @@ def _run_swy(
             target_band = target_raster.GetRasterBand(1)
             target_band.SetNoDataValue(-9999)
             target_raster = None
+            target_band = None
         stitch_queue = multiprocessing_manager.Queue(N_TO_BUFFER_STITCH*2)
         stitch_thread = threading.Thread(
             target=stitch_worker,
@@ -504,12 +521,12 @@ def _run_swy(
 
     clean_workspace_worker = threading.Thread(
         target=_clean_workspace_worker,
-        args=(len(target_stitch_raster_map), signal_done_queue,
-              keep_intermediate_files))
+        args=(len(target_stitch_raster_map), model_args['workspace_dir'],
+              signal_done_queue, keep_intermediate_files))
     clean_workspace_worker.daemon = True
     clean_workspace_worker.start()
 
-    # Iterate through each watershed subset and run SDR
+    # Iterate through each watershed subset and run SWY
     # stitch the results of whatever outputs to whatever global output raster.
     scheduled_watershed_set = set()
     for index, watershed_path in enumerate(watershed_path_list):
@@ -520,7 +537,7 @@ def _run_swy(
             raise ValueError(
                 f'somehow {local_workspace_dir} has been added twice, here is '
                 f'watershed path list {watershed_path_list}')
-        task_name = f'sdr {os.path.basename(local_workspace_dir)}'
+        task_name = f'swy {os.path.basename(local_workspace_dir)}'
         task_graph.add_task(
             func=_execute_swy_job,
             args=(
@@ -531,11 +548,11 @@ def _run_swy(
             priority=-index,  # priority in insert order
             task_name=task_name)
 
-    LOGGER.info('wait for SDR jobs to complete')
+    LOGGER.info('wait for SWY jobs to complete')
     task_graph.join()
     for local_result_path, stitch_queue in stitch_raster_queue_map.items():
         stitch_queue.put(None)
-    LOGGER.info('all done with SDR, waiting for stitcher to terminate')
+    LOGGER.info('all done with SWY, waiting for stitcher to terminate')
     for stitch_thread in stitch_worker_list:
         stitch_thread.join()
     LOGGER.info(
@@ -543,7 +560,7 @@ def _run_swy(
     signal_done_queue.put(None)
     clean_workspace_worker.join()
 
-    LOGGER.info('all done with SDR -- stitcher terminated')
+    LOGGER.info('all done with SWY -- stitcher terminated')
 
 
 def _watersheds_intersect(wgs84_bb, watersheds_path):
@@ -614,7 +631,7 @@ def _clip_and_warp(
 def _execute_swy_job(
         global_wgs84_bb, watersheds_path, local_workspace_dir, model_args,
         stitch_raster_queue_map, target_pixel_size, result_suffix):
-    """Worker to execute sdr and send signals to stitcher.
+    """Worker to execute SWY and send signals to stitcher.
 
     Args:
         global_wgs84_bb (list): bounding box to limit run to, if watersheds do
@@ -766,8 +783,11 @@ def main():
 
         local_workspace = f'workspace_swy_{scenario_id}'
         os.makedirs(local_workspace, exist_ok=True)
-        task_graph = taskgraph.TaskGraph(
-            local_workspace, multiprocessing.cpu_count(), 5.0)
+        if 'n_workers' in scenario_config:
+            n_workers = int(scenario_config['n_workers'])
+        else:
+            n_workers = multiprocessing.cpu_count()
+        task_graph = taskgraph.TaskGraph(local_workspace, n_workers, 5.0)
 
         exclusive_watershed_subset = scenario_config.get(
             'watershed_subset', fallback=None)
