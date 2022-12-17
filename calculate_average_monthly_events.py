@@ -50,6 +50,7 @@ def main():
         for year in range(args.start_year, args.end_year+1):
             start_date = f'{year}-{month_val}-01'
             end_date = f'{year}-{month_val}-{day_in_month}'
+            print(start_date, end_date)
             era5_month_collection = base_era5_daily_collection.filterDate(
                 start_date, end_date)
             era5_daily_precip = era5_month_collection.select(
@@ -64,8 +65,8 @@ def main():
                 era5_precip_event_sum)
 
         monthly_rain_event_image = monthly_rain_event_image.divide(
-            args.end_year+1-args.start_year)
-        url = era5_precip_event_sum.getDownloadUrl({
+         args.end_year+1-args.start_year)
+        url = monthly_rain_event_image.getDownloadUrl({
             'region': ee_poly.geometry().bounds(),
             'scale': ERA5_RESOLUTION_M,
             'format': 'GEO_TIFF'
