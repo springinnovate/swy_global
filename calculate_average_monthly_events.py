@@ -73,7 +73,7 @@ def main():
         })
         response = requests.get(url)
         vector_basename = os.path.basename(os.path.splitext(args.path_to_watersheds)[0])
-        precip_path = f"{vector_basename}_avg_precip_events_{args.start_year}_{args.end_year}_{month_val}.tif"
+        precip_path = f"{vector_basename}_avg_precip_events_{args.start_year}_{args.end_year}_{month_val}_{args.rain_event_threshold}.tif"
         print(f'calculate total precip event {precip_path}')
         with open(precip_path, 'wb') as fd:
             fd.write(response.content)
