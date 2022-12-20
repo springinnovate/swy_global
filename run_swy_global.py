@@ -829,6 +829,7 @@ def main():
             'soil_group_path': scenario_config['soil_hydrologic_group_raster_path'],
             'biophysical_table_path': scenario_config['biophysical_table_path'],
             'rain_events_table_path': scenario_config['rain_events_table_path'],
+            'user_defined_rain_events_path': scenario_config['user_defined_rain_events_path'],
             'monthly_alpha': False,
             'alpha_m': 1/12,
             'beta_i': scenario_config['beta_i'],
