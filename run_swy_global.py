@@ -128,9 +128,9 @@ def _process_scenario_ini(scenario_config_path):
     for key in scenario_config:
         if key.endswith('_path'):
             possible_path = scenario_config[key]
-            if not os.path.exists(possible_path):
-                raise ValueError(
-                    f'expected a file from "{key}" at "{possible_path}" '
+            if not os.path.exists(possible_path) and possible_path != '':
+                LOGGER.warn(
+                    f'since "{key}" ends in _PATH, expected file at "{possible_path}" '
                     f'but file not found')
 
     return scenario_config, scenario_id
@@ -321,7 +321,7 @@ def _batch_into_watershed_subsets(
                     args=(
                         watershed_path, fid_list, epsg, watershed_subset_path),
                     target_path_list=[watershed_subset_path],
-                    task_name=job_id)
+                    task_name=f'create {len(fid_list)} element watershed subset for {job_id}')
             watershed_path_area_list.append(
                 (area, watershed_subset_path))
             LOGGER.debug(f'added {watershed_subset_path}****')
