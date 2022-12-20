@@ -321,7 +321,7 @@ def _batch_into_watershed_subsets(
                     args=(
                         watershed_path, fid_list, epsg, watershed_subset_path),
                     target_path_list=[watershed_subset_path],
-                    task_name=job_id)
+                    task_name=f'create {len(fid_list)} element watershed subset for {job_id}')
             watershed_path_area_list.append(
                 (area, watershed_subset_path))
             LOGGER.debug(f'added {watershed_subset_path}****')
