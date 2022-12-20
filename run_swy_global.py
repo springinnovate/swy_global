@@ -128,9 +128,9 @@ def _process_scenario_ini(scenario_config_path):
     for key in scenario_config:
         if key.endswith('_path'):
             possible_path = scenario_config[key]
-            if not os.path.exists(possible_path):
-                raise ValueError(
-                    f'expected a file from "{key}" at "{possible_path}" '
+            if not os.path.exists(possible_path) and possible_path != '':
+                LOGGER.warn(
+                    f'since "{key}" ends in _PATH, expected file at "{possible_path}" '
                     f'but file not found')
 
     return scenario_config, scenario_id
