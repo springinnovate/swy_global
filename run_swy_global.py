@@ -721,6 +721,28 @@ def _execute_swy_job(
     lat_lng_bb = geoprocessing.transform_bounding_box(
         watershed_bb, target_projection_wkt, osr.SRS_WKT_WGS84_LAT_LONG)
 
+
+    if model_args['user_defined_rain_events_path']:
+        potential_rain_events_path_list = list(
+            glob.glob(model_args['user_defined_rain_events_path']))
+        if len(potential_rain_events_path_list) != 12:
+            raise ValueError(
+                f'user supplied user defined rain events path as '
+                f'{model_args["user_defined_rain_events_path"]} but matched more '
+                f'than 12 files {potential_rain_events_path_list}')
+        local_precip_dir = os.path.join(clipped_data_dir, 'local_rain_events')
+        for month_id in range(12, 0, -1):
+            for index, path in enumerate(potential_rain_events_path_list):
+                if path.find(f'{month_id}') >= 0:
+                    base_raster_path_list.append(path)
+                    warped_raster_path_list.append(
+                        os.path.join(local_precip_dir, os.path.basename(path)))
+                potential_rain_events_path_list.pop(index)
+        # point to new projected coords
+        model_args['user_defined_rain_events_path'] = os.path.join(
+            local_precip_dir, os.path.basename(
+                model_args['user_defined_rain_events_path']))
+
     # re-warp stuff we already did
     _warp_raster_stack(
         base_raster_path_list, warped_raster_path_list,
