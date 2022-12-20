@@ -721,7 +721,6 @@ def _execute_swy_job(
     lat_lng_bb = geoprocessing.transform_bounding_box(
         watershed_bb, target_projection_wkt, osr.SRS_WKT_WGS84_LAT_LONG)
 
-
     if model_args['user_defined_rain_events_path']:
         potential_rain_events_path_list = list(
             glob.glob(model_args['user_defined_rain_events_path']))
@@ -737,7 +736,9 @@ def _execute_swy_job(
                     base_raster_path_list.append(path)
                     warped_raster_path_list.append(
                         os.path.join(local_precip_dir, os.path.basename(path)))
-                potential_rain_events_path_list.pop(index)
+                    potential_rain_events_path_list.pop(index)
+                    resample_method_list.append('near')
+                    break
         # point to new projected coords
         model_args['user_defined_rain_events_path'] = os.path.join(
             local_precip_dir, os.path.basename(
