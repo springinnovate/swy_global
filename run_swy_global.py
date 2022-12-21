@@ -254,8 +254,12 @@ def _batch_into_watershed_subsets(
             else:
                 # just grab the subset
                 watershed_ids = watershed_subset[2]
-                watershed_layer = [
-                    watershed_layer.GetFeature(fid) for fid in watershed_ids]
+                if isinstance(watershed_ids, int):
+                    watershed_layer = [watershed_layer.GetFeature(watershed_ids)]
+                else:
+                    LOGGER.error(f'these are watershed ids: {watershed_ids}')
+                    watershed_layer = [
+                        watershed_layer.GetFeature(fid) for fid in watershed_ids]
                 LOGGER.debug(f'getting that subset of {watershed_ids}')
 
         # watershed layer is either the layer or a list of features
@@ -790,6 +794,9 @@ def main():
     parser.add_argument(
         'scenario_config_path',
         help='Pattern to .INI file(s) that describes scenario(s) to run.')
+    parser.add_argument(
+        '--keep_intermediate_files', action='store_true',
+        help='pass flag to keep intermediate workspaces')
     args = parser.parse_args()
 
     scenario_config_path_list = list(glob.glob(args.scenario_config_path))
@@ -890,7 +897,7 @@ def main():
             os.path.join('intermediate_outputs', 'qf_11.tif'): os.path.join(model_args['workspace_dir'], 'qf_11.tif'),
             os.path.join('intermediate_outputs', 'qf_12.tif'): os.path.join(model_args['workspace_dir'], 'qf_12.tif'),
         }
-        keep_intermediate_files = False
+        keep_intermediate_files = args.keep_intermediate_files
         _run_swy(
             task_graph=task_graph,
             model_args=model_args,
