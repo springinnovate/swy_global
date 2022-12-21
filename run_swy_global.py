@@ -88,6 +88,7 @@ def _clean_workspace_worker(
                     f'removing {workspace_dir} after {count_dict[workspace_dir]} '
                     f'signals')
                 if not keep_intermediate_files:
+                    LOGGER.error(f'**************** {keep_intermediate_files} removeing {workspace_dir}')
                     shutil.rmtree(
                         os.path.join(workspace_root_dir, workspace_dir))
                 del count_dict[workspace_dir]
@@ -898,6 +899,7 @@ def main():
             os.path.join('intermediate_outputs', 'qf_12.tif'): os.path.join(model_args['workspace_dir'], 'qf_12.tif'),
         }
         keep_intermediate_files = args.keep_intermediate_files
+        LOGGER.debug(keep_intermediate_files)
         _run_swy(
             task_graph=task_graph,
             model_args=model_args,
