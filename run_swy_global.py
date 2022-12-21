@@ -129,7 +129,7 @@ def _process_scenario_ini(scenario_config_path):
         if key.endswith('_path'):
             possible_path = scenario_config[key]
             if not os.path.exists(possible_path) and possible_path != '':
-                LOGGER.warn(
+                LOGGER.warning(
                     f'since "{key}" ends in _PATH, expected file at "{possible_path}" '
                     f'but file not found')
 
@@ -294,7 +294,7 @@ def _batch_into_watershed_subsets(
                     watershed_bb[2] > global_bb[2] or
                     watershed_bb[1] > global_bb[3] or
                     watershed_bb[3] < global_bb[1]):
-                # LOGGER.warn(
+                # LOGGER.warning(
                 #     f'{watershed_bb} is on a dangerous boundary so dropping')
                 # drop because it's outside of the BB
                 watershed_fid_index[job_id][0].pop()
@@ -580,7 +580,7 @@ def _watersheds_intersect(wgs84_bb, watersheds_path):
         LOGGER.info(f'{watersheds_path} intersects {wgs84_bb} with {watershed_wgs84_bb}')
         return True
     except ValueError:
-        LOGGER.warn(f'{watersheds_path} does not intersect {wgs84_bb}')
+        LOGGER.warning(f'{watersheds_path} does not intersect {wgs84_bb}')
         return False
 
 
