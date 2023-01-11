@@ -9,6 +9,9 @@ import geopandas
 import requests
 
 ERA5_RESOLUTION_M = 27830
+ERA5_RESOLUTION_DEG = ERA5_RESOLUTION_M/110000
+CHIRPS_RESOLUTION_M = 5566
+CHIRPS_RESOLUTION_DEG = CHIRPS_RESOLUTION_M/110000
 
 month_list = [
     '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
@@ -28,7 +31,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='Monthly rain events by watershed in an average yearly range.')
     parser.add_argument(
-        'path_to_watersheds', help='Path to vector/shapefile of watersheds')
+        'path_to_watersheds_or_raster', help='Path to vector/shapefile of watersheds')
     parser.add_argument('start_year', type=int, help='start year YYYY')
     parser.add_argument('end_year', type=int, help='end year YYYY')
     parser.add_argument(
@@ -46,6 +49,8 @@ def main():
 
     # convert to GEE polygon
     gp_poly = geopandas.read_file(args.path_to_watersheds).to_crs('EPSG:4326')
+    print(f'simplifying {args.path_to_watersheds}')
+    gp_poly = gp_poly.simplify(tolerance=CHIRPS_RESOLUTION_DEG/2)
     local_shapefile_path = '_local_ok_to_delete.shp'
     gp_poly.to_file(local_shapefile_path)
     gp_poly = None
