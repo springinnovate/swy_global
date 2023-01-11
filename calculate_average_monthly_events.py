@@ -31,7 +31,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='Monthly rain events by watershed in an average yearly range.')
     parser.add_argument(
-        'path_to_watersheds_or_raster', help='Path to vector/shapefile of watersheds')
+        'path_to_watersheds', help='Path to vector/shapefile of watersheds')
     parser.add_argument('start_year', type=int, help='start year YYYY')
     parser.add_argument('end_year', type=int, help='end year YYYY')
     parser.add_argument(
@@ -40,6 +40,9 @@ def main():
     parser.add_argument(
         '--rain_event_threshold', default=0.1, type=float,
         help='amount of rain (mm) in a day to count as a rain event')
+    parser.add_argument(
+        '--parallel', action='store_true',
+        help='if set, query all months in GEE in parallel, otherwise do one month/dataset at a time')
     args = parser.parse_args()
 
     if args.authenticate:
@@ -52,8 +55,10 @@ def main():
     print(f'simplifying {args.path_to_watersheds}')
     gp_poly = gp_poly.simplify(tolerance=CHIRPS_RESOLUTION_DEG/2)
     local_shapefile_path = '_local_ok_to_delete.shp'
+    print(f'saving to {local_shapefile_path}')
     gp_poly.to_file(local_shapefile_path)
     gp_poly = None
+    print(f'converting to ee poly')
     ee_poly = geemap.shp_to_ee(local_shapefile_path)
 
     # landcover code 200 is open ocean, so use that as a mask
@@ -93,11 +98,13 @@ def main():
 
                 vector_basename = os.path.basename(os.path.splitext(args.path_to_watersheds)[0])
                 precip_path = f"{vector_basename}_{id}_avg_precip_events_{args.start_year}_{args.end_year}_{month_val}_{args.rain_event_threshold}.tif"
-
-                url_fetch_worker_list.append(
-                    executor.submit(
-                        save_raster, monthly_rain_event_image, land_mask,
-                        ee_poly, resolution_in_m, precip_path))
+                print(f'starting worker for precip {precip_path}')
+                future = executor.submit(
+                    save_raster, monthly_rain_event_image, land_mask,
+                    ee_poly, resolution_in_m, precip_path)
+                url_fetch_worker_list.append(future)
+                if not args.parallel:
+                    future.result()
 
         for future in url_fetch_worker_list:
             try:
