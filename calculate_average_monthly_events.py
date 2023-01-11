@@ -20,7 +20,7 @@ days_in_month_list = [
 
 # (ID, DATASET, BAND ID, RESOLUTION IN M, SCALE FACTOR)
 DATASETS = [
-    ('ERA5', 'ECMWF/ERA5/DAILY', 'total_precipitation', 27830, 1000.0),
+    #('ERA5', 'ECMWF/ERA5/DAILY', 'total_precipitation', 27830, 1000.0),
     ('CHIRPS', 'UCSB-CHG/CHIRPS/DAILY', 'precipitation', 5566, 1),
     ]
 
