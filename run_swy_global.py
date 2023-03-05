@@ -623,6 +623,13 @@ def _clip_and_warp(
     watershed_projection_wkt = geoprocessing.get_vector_info(
         watershed_clip_vector_path)['projection_wkt']
     vector_mask_options = {'mask_vector_path': watershed_clip_vector_path}
+    raster_info = geoprocessing.get_raster_info(clipped_raster_path)
+    if raster_info['nodata'][0] is None:
+        # set a nodata value so it masks correctly
+        raster = gdal.OpenEx(
+            clipped_raster_path, gdal.OF_RASTER | gdal.GA_Update)
+        band = raster.GetRasterBand(1)
+        band.SetNoDataValue(-9999)
     geoprocessing.warp_raster(
         clipped_raster_path, (target_pixel_size, -target_pixel_size),
         warped_raster_path, resample_method, **{
@@ -663,7 +670,6 @@ def _execute_swy_job(
     dem_pixel_size = geoprocessing.get_raster_info(
         model_args['dem_raster_path'])['pixel_size']
 
-    # TODO: parse out all the ETO and precip rasters
     path_list = [model_args[key] for key in [
         'dem_raster_path', 'soil_group_path', 'lulc_raster_path']]
 
