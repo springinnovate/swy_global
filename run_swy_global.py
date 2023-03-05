@@ -630,6 +630,8 @@ def _clip_and_warp(
             clipped_raster_path, gdal.OF_RASTER | gdal.GA_Update)
         band = raster.GetRasterBand(1)
         band.SetNoDataValue(-9999)
+        band = None
+        raster = None
     geoprocessing.warp_raster(
         clipped_raster_path, (target_pixel_size, -target_pixel_size),
         warped_raster_path, resample_method, **{
