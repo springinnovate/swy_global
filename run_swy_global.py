@@ -137,38 +137,6 @@ def _process_scenario_ini(scenario_config_path):
     return scenario_config, scenario_id
 
 
-def clip_raster_by_vector(
-        raster_path, vector_path, vector_field, field_value_list,
-        target_raster_path, target_vector_path):
-    """Clip and mask raster to vector using tightest bounding box."""
-    raster_info = geoprocessing.get_raster_info(raster_path)
-    raster_projection_wkt = raster_info['projection_wkt']
-
-    LOGGER.info(f'reproject vector to {target_vector_path}')
-    where_filter = f'{vector_field.upper()} IN (' + ', '.join([str(x) for x in field_value_list]) + ')'
-    LOGGER.debug(f'{target_vector_path} {where_filter}')
-    geoprocessing.reproject_vector(
-        vector_path, raster_projection_wkt, target_vector_path,
-        where_filter=where_filter, driver_name='GPKG')
-
-    projected_vector_info = geoprocessing.get_vector_info(
-        target_vector_path)
-
-    target_bb = geoprocessing.merge_bounding_box_list(
-        [raster_info['bounding_box'], projected_vector_info['bounding_box']],
-        'intersection')
-
-    geoprocessing.warp_raster(
-        raster_path, raster_info['pixel_size'], target_raster_path,
-        'near', target_bb=target_bb,
-        vector_mask_options={
-            'mask_vector_path': target_vector_path,
-            'all_touched': True,
-            },
-        working_dir=os.getcwd())
-    LOGGER.info(f'all done, raster at {target_raster_path}')
-
-
 def _create_fid_subset(
         base_vector_path, fid_list, target_epsg, target_vector_path):
     """Create subset of vector that matches fid list, projected into epsg."""
@@ -450,6 +418,7 @@ def _run_swy(
         target_pixel_size,
         keep_intermediate_files,
         watershed_path_list,
+        all_touched,
         result_suffix):
     """Run SWY
 
@@ -465,6 +434,8 @@ def _run_swy(
             raster of this model to an existing global raster to stich into.
         keep_intermediate_files (bool): if True, the intermediate watershed
             workspace created underneath `workspace_dir` is deleted.
+        all_touched (bool): if True, use the ALL_TOUCHED=TRUE clipping
+            algorithm.
         result_suffix (str): optional, prepended to the global stitch results.
 
     Returns:
@@ -551,7 +522,7 @@ def _run_swy(
             args=(
                 global_wgs84_bb, watershed_path, local_workspace_dir,
                 model_args, stitch_raster_queue_map,
-                target_pixel_size, result_suffix),
+                target_pixel_size, all_touched, result_suffix),
             transient_run=False,
             priority=-index,  # priority in insert order
             task_name=task_name)
@@ -591,7 +562,8 @@ def _watersheds_intersect(wgs84_bb, watersheds_path):
 def _warp_raster_stack(
         base_raster_path_list, warped_raster_path_list,
         resample_method_list, clip_pixel_size, target_pixel_size,
-        clip_bounding_box, clip_projection_wkt, watershed_clip_vector_path):
+        clip_bounding_box, clip_projection_wkt, all_touched_clip,
+        watershed_clip_vector_path):
     """Do an align of all the rasters.
 
     Arguments are same as geoprocessing.align_and_resize_raster_stack.
@@ -603,13 +575,13 @@ def _warp_raster_stack(
         _clip_and_warp(
             raster_path, clip_bounding_box, clip_pixel_size, resample_method,
             clip_projection_wkt, watershed_clip_vector_path, target_pixel_size,
-            warped_raster_path)
+            all_touched_clip, warped_raster_path)
 
 
 def _clip_and_warp(
         base_raster_path, clip_bounding_box, clip_pixel_size, resample_method,
         clip_projection_wkt, watershed_clip_vector_path, target_pixel_size,
-        warped_raster_path):
+        all_touched_clip, warped_raster_path):
     working_dir = os.path.dirname(warped_raster_path)
     # first clip to clip projection
     clipped_raster_path = '%s_clipped%s' % os.path.splitext(
@@ -620,7 +592,7 @@ def _clip_and_warp(
             'target_bb': clip_bounding_box,
             'target_projection_wkt': clip_projection_wkt,
             'working_dir': working_dir,
-            'all_touched': True,
+            'all_touched': all_touched_clip,
         })
 
     # second, warp and mask to vector
@@ -642,14 +614,14 @@ def _clip_and_warp(
             'target_projection_wkt': watershed_projection_wkt,
             'vector_mask_options': vector_mask_options,
             'working_dir': working_dir,
-            'all_touched': True,
+            'all_touched': all_touched_clip,
         })
     os.remove(clipped_raster_path)
 
 
 def _execute_swy_job(
         global_wgs84_bb, watersheds_path, local_workspace_dir, model_args,
-        stitch_raster_queue_map, target_pixel_size, result_suffix):
+        stitch_raster_queue_map, target_pixel_size, all_touched, result_suffix):
     """Worker to execute SWY and send signals to stitcher.
 
     Args:
@@ -659,6 +631,8 @@ def _execute_swy_job(
         local_workspace_dir (str): path to local directory
         model_args (dict): for running model.
         target_pixel_size (float): target pixel size
+        all_touched (bool): If True, use the ALL_TOUCHED=TRUE algorithm when
+            clipping rasters.
 
 
         stitch_raster_queue_map (dict): map of local result path to
@@ -767,7 +741,8 @@ def _execute_swy_job(
     _warp_raster_stack(
         base_raster_path_list, warped_raster_path_list,
         resample_method_list, dem_pixel_size, target_pixel_size,
-        lat_lng_bb, osr.SRS_WKT_WGS84_LAT_LONG, watersheds_path)
+        lat_lng_bb, osr.SRS_WKT_WGS84_LAT_LONG,
+        all_touched, watersheds_path)
 
     model_args['aoi_path'] = watersheds_path
     model_args['prealigned'] = True
@@ -914,6 +889,9 @@ def main():
         }
         keep_intermediate_files = args.keep_intermediate_files
         LOGGER.debug(keep_intermediate_files)
+
+        all_touched = scenario_config['all_touched'] == True
+
         _run_swy(
             task_graph=task_graph,
             model_args=model_args,
@@ -922,6 +900,7 @@ def main():
             keep_intermediate_files=keep_intermediate_files,
             watershed_path_list=watershed_subset_list,
             target_pixel_size=eval(scenario_config['target_pixel_size']),
+            all_touched=all_touched,
             result_suffix=scenario_id)
 
         task_graph.join()
