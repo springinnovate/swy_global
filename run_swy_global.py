@@ -592,13 +592,14 @@ def _clip_and_warp(
             'target_bb': clip_bounding_box,
             'target_projection_wkt': clip_projection_wkt,
             'working_dir': working_dir,
-            'all_touched': all_touched_clip,
         })
 
     # second, warp and mask to vector
     watershed_projection_wkt = geoprocessing.get_vector_info(
         watershed_clip_vector_path)['projection_wkt']
-    vector_mask_options = {'mask_vector_path': watershed_clip_vector_path}
+    vector_mask_options = {
+        'mask_vector_path': watershed_clip_vector_path,
+        'all_touched': all_touched_clip}
     raster_info = geoprocessing.get_raster_info(clipped_raster_path)
     if raster_info['nodata'][0] is None:
         # set a nodata value so it masks correctly
@@ -613,8 +614,7 @@ def _clip_and_warp(
         warped_raster_path, resample_method, **{
             'target_projection_wkt': watershed_projection_wkt,
             'vector_mask_options': vector_mask_options,
-            'working_dir': working_dir,
-            'all_touched': all_touched_clip,
+            'working_dir': working_dir
         })
     os.remove(clipped_raster_path)
 
