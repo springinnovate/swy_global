@@ -161,7 +161,10 @@ def clip_raster_by_vector(
     geoprocessing.warp_raster(
         raster_path, raster_info['pixel_size'], target_raster_path,
         'near', target_bb=target_bb,
-        vector_mask_options={'mask_vector_path': target_vector_path},
+        vector_mask_options={
+            'mask_vector_path': target_vector_path,
+            'all_touched': True,
+            },
         working_dir=os.getcwd())
     LOGGER.info(f'all done, raster at {target_raster_path}')
 
@@ -616,7 +619,8 @@ def _clip_and_warp(
         resample_method, **{
             'target_bb': clip_bounding_box,
             'target_projection_wkt': clip_projection_wkt,
-            'working_dir': working_dir
+            'working_dir': working_dir,
+            'all_touched': True,
         })
 
     # second, warp and mask to vector
@@ -638,6 +642,7 @@ def _clip_and_warp(
             'target_projection_wkt': watershed_projection_wkt,
             'vector_mask_options': vector_mask_options,
             'working_dir': working_dir,
+            'all_touched': True,
         })
     os.remove(clipped_raster_path)
 
