@@ -583,6 +583,7 @@ def _clip_and_warp(
         clip_projection_wkt, watershed_clip_vector_path, target_pixel_size,
         all_touched_clip, warped_raster_path):
     working_dir = os.path.dirname(warped_raster_path)
+    os.makedirs(working_dir, exist_ok=True)
     # first clip to clip projection
     clipped_raster_path = '%s_clipped%s' % os.path.splitext(
         warped_raster_path)
@@ -609,6 +610,7 @@ def _clip_and_warp(
         band.SetNoDataValue(-9999)
         band = None
         raster = None
+    LOGGER.debug(f'warping {clipped_raster_path} to {warped_raster_path}')
     geoprocessing.warp_raster(
         clipped_raster_path, (target_pixel_size, -target_pixel_size),
         warped_raster_path, resample_method, **{
