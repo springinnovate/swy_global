@@ -858,7 +858,7 @@ def main():
             'gamma': scenario_config['gamma'],
             'user_defined_local_recharge': None,
             'user_defined_climate_zones': None,
-            'lucode_field': scenario_config['lucode_field'],
+            'biophysical_table_lucode_field': scenario_config['lucode_field'],
             'max_pixel_fill_count': scenario_config['max_pixel_fill_count'],
         }
 
