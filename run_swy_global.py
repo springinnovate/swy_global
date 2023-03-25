@@ -320,10 +320,12 @@ def _batch_into_watershed_subsets(
 
 def _calculate_intersecting_bounding_box(raster_path_list):
     # create intersecting bounding box of input data
+    LOGGER.debug(raster_path_list)
     raster_info_list = [
         geoprocessing.get_raster_info(raster_path)
         for raster_path in raster_path_list
-        if geoprocessing.get_raster_info(raster_path)['projection_wkt']
+        if raster_path not in [None, ''] and
+        geoprocessing.get_raster_info(raster_path)['projection_wkt']
         is not None]
 
     raster_bounding_box_list = [
@@ -652,24 +654,32 @@ def _execute_swy_job(
 
     dem_pixel_size = geoprocessing.get_raster_info(
         model_args['dem_raster_path'])['pixel_size']
-
-    path_list = [model_args[key] for key in [
-        'dem_raster_path', 'soil_group_path', 'lulc_raster_path']]
+    expected_keys = ['dem_raster_path', 'soil_group_path']
+    resample_method_list = ['bilinear', 'mode']
+    if model_args['lulc_raster_path'] not in [None, '']:
+        expected_keys.append(model_args['lulc_raster_path'])
+        resample_method_list.append('mode')
+    valid_biophysical_keys = expected_keys + [key for key in [
+        'root_depth_path', 'cn_a_path', 'cn_b_path', 'cn_c_path', 'cn_d_path',
+        'kc_1_path', 'kc_2_path', 'kc_3_path', 'kc_4_path', 'kc_5_path',
+        'kc_6_path', 'kc_7_path', 'kc_8_path', 'kc_9_path', 'kc_10_path',
+        'kc_11_path', 'kc_12_path'] if model_args[key] not in [None, '']]
+    path_list = [model_args[key] for key in valid_biophysical_keys]
+    resample_method_list = ['bilinear', 'mode', 'mode'] + ['bilinear'] * (len(
+        path_list)-3)
 
     clipped_data_dir = os.path.join(local_workspace_dir, 'data')
     os.makedirs(clipped_data_dir, exist_ok=True)
     warped_raster_path_list = [
         os.path.join(clipped_data_dir, os.path.basename(path))
         for path in path_list]
-    resample_method_list = ['bilinear', 'mode', 'mode']
-    LOGGER.debug(path_list)
-    LOGGER.debug(warped_raster_path_list)
 
     model_args = model_args.copy()
     model_args['workspace_dir'] = local_workspace_dir
-    model_args['dem_raster_path'] = warped_raster_path_list[0]
-    model_args['soil_group_path'] = warped_raster_path_list[1]
-    model_args['lulc_raster_path'] = warped_raster_path_list[2]
+    model_args.update({
+        key: warped_path for key, warped_path in zip(
+            valid_biophysical_keys, warped_raster_path_list)
+        })
 
     local_et0_dir = os.path.join(clipped_data_dir, 'local_et0')
     local_precip_dir = os.path.join(clipped_data_dir, 'local_precip')
@@ -772,8 +782,6 @@ def _execute_swy_job(
         model_args['soil_group_path'] = (
             reclass_soil_group_path)
 
-    # TODO: need to add these special flags so things don't re-warp
-
     seasonal_water_yield.execute(model_args)
     for local_result_path, stitch_queue in stitch_raster_queue_map.items():
         stitch_queue.put(
@@ -849,7 +857,7 @@ def main():
             'dem_raster_path': scenario_config['dem_raster_path'],
             'lulc_raster_path': scenario_config['lulc_raster_path'],
             'soil_group_path': scenario_config['soil_hydrologic_group_raster_path'],
-            'biophysical_table_path': scenario_config['biophysical_table_path'],
+            'biophysical_table_path': scenario_config.get('biophysical_table_path', None),
             'rain_events_table_path': scenario_config['rain_events_table_path'],
             'user_defined_rain_events_path': scenario_config['user_defined_rain_events_path'],
             'monthly_alpha': False,
@@ -858,8 +866,27 @@ def main():
             'gamma': scenario_config['gamma'],
             'user_defined_local_recharge': None,
             'user_defined_climate_zones': None,
-            'lucode_field': scenario_config['lucode_field'],
+            'lucode_field': scenario_config.get('lucode_field', None),
             'max_pixel_fill_count': scenario_config['max_pixel_fill_count'],
+            # These keys are optional rasters that would replace lulc
+            # biophysical parameters
+            'root_depth_path': scenario_config.get('root_depth_path', None),
+            'cn_a_path': scenario_config.get('cn_a_path', None),
+            'cn_b_path': scenario_config.get('cn_b_path', None),
+            'cn_c_path': scenario_config.get('cn_c_path', None),
+            'cn_d_path': scenario_config.get('cn_d_path', None),
+            'kc_1_path': scenario_config.get('kc_1_path', None),
+            'kc_2_path': scenario_config.get('kc_2_path', None),
+            'kc_3_path': scenario_config.get('kc_3_path', None),
+            'kc_4_path': scenario_config.get('kc_4_path', None),
+            'kc_5_path': scenario_config.get('kc_5_path', None),
+            'kc_6_path': scenario_config.get('kc_6_path', None),
+            'kc_7_path': scenario_config.get('kc_7_path', None),
+            'kc_8_path': scenario_config.get('kc_8_path', None),
+            'kc_9_path': scenario_config.get('kc_9_path', None),
+            'kc_10_path': scenario_config.get('kc_10_path', None),
+            'kc_11_path': scenario_config.get('kc_11_path', None),
+            'kc_12_path': scenario_config.get('kc_12_path', None),
         }
 
         if 'soil_hydrologic_map' in scenario_config:
@@ -892,7 +919,7 @@ def main():
         keep_intermediate_files = args.keep_intermediate_files
         LOGGER.debug(keep_intermediate_files)
 
-        all_touched = scenario_config['all_touched'] == True
+        all_touched = bool(scenario_config['all_touched']) is True
 
         _run_swy(
             task_graph=task_graph,
