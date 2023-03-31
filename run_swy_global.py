@@ -731,8 +731,9 @@ def _execute_swy_job(
         if len(potential_rain_events_path_list) != 12:
             raise ValueError(
                 f'user supplied user defined rain events path as '
-                f'{model_args["user_defined_rain_events_path"]} but matched more '
-                f'than 12 files {potential_rain_events_path_list}')
+                f'{model_args["user_defined_rain_events_path"]} but did not '
+                f'match excactly 12 files, instead matched this:  '
+                f'{potential_rain_events_path_list}')
         local_rain_dir = os.path.join(clipped_data_dir, 'local_rain_events')
         os.makedirs(os.path.join(local_rain_dir), exist_ok=True)
         for month_id in range(12, 0, -1):
@@ -776,8 +777,7 @@ def _execute_swy_job(
             f"reclassed_{os.path.basename(model_args['soil_group_path'])}")
         geoprocessing.reclassify_raster(
             (model_args['soil_group_path'], 1),
-            reclass_map, reclass_soil_group_path, gdal.GDT_Byte, 0,
-            values_required=True)
+            reclass_map, reclass_soil_group_path, gdal.GDT_Byte, 0)
 
         model_args['soil_group_path'] = (
             reclass_soil_group_path)
