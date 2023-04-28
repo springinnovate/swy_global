@@ -657,7 +657,7 @@ def _execute_swy_job(
     expected_keys = ['dem_raster_path', 'soil_group_path']
     resample_method_list = ['bilinear', 'mode']
     if model_args['lulc_raster_path'] not in [None, '']:
-        expected_keys.append(model_args['lulc_raster_path'])
+        expected_keys.append('lulc_raster_path')
         resample_method_list.append('mode')
     valid_biophysical_keys = expected_keys + [key for key in [
         'root_depth_path', 'cn_a_path', 'cn_b_path', 'cn_c_path', 'cn_d_path',
