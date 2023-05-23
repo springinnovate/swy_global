@@ -234,7 +234,7 @@ def _batch_into_watershed_subsets(
                     watershed_layer = [
                         watershed_layer.GetFeature(fid) for fid in watershed_ids]
                 LOGGER.debug(f'getting that subset of {watershed_ids}')
-        sys.exit(-1)
+
         # watershed layer is either the layer or a list of features
         for watershed_feature in watershed_layer:
             fid = watershed_feature.GetFID()
