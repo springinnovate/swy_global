@@ -792,15 +792,19 @@ def _execute_swy_job(
 def main():
     parser = argparse.ArgumentParser(description='Global SWY')
     parser.add_argument(
-        'scenario_config_path',
-        help='Pattern to .INI file(s) that describes scenario(s) to run.')
+        'scenario_config_path', nargs='+', help=(
+            'List of paths or path patterns to .INI file(s) that describes '
+            'scenario(s) to run.'))
     parser.add_argument(
         '--keep_intermediate_files', action='store_true',
         help='pass flag to keep intermediate workspaces')
     args = parser.parse_args()
 
-    scenario_config_path_list = list(glob.glob(
-        args.scenario_config_path, casefold=True))
+    scenario_config_path_list = [
+        path
+        for path_pattern in args.scenario_config_path
+        for path in glob.glob(path_pattern)]
+
     LOGGER.info(f'''parsing and validating {
         len(scenario_config_path_list)} configuration files''')
     config_scenario_list = []
