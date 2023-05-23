@@ -206,7 +206,8 @@ def _batch_into_watershed_subsets(
     LOGGER.debug(f'looping through all the shp files in {watershed_root_dir}')
     for watershed_path in glob.glob(
             os.path.join(watershed_root_dir, '*.shp')):
-        LOGGER.debug(f'scheduling {os.path.basename(watershed_path)} *********')
+        LOGGER.debug(f'scheduling {os.path.basename(watershed_path)} with watershed subset at {watershed_subset} *********')
+
         subbatch_job_index_map = collections.defaultdict(int)
         # lambda describes the FIDs to process per job, the list of lat/lng
         # bounding boxes for each FID, and the total degree area of the job
@@ -233,7 +234,7 @@ def _batch_into_watershed_subsets(
                     watershed_layer = [
                         watershed_layer.GetFeature(fid) for fid in watershed_ids]
                 LOGGER.debug(f'getting that subset of {watershed_ids}')
-
+        sys.exit(-1)
         # watershed layer is either the layer or a list of features
         for watershed_feature in watershed_layer:
             fid = watershed_feature.GetFID()
@@ -798,7 +799,8 @@ def main():
         help='pass flag to keep intermediate workspaces')
     args = parser.parse_args()
 
-    scenario_config_path_list = list(glob.glob(args.scenario_config_path))
+    scenario_config_path_list = list(glob.glob(
+        args.scenario_config_path, casefold=True))
     LOGGER.info(f'''parsing and validating {
         len(scenario_config_path_list)} configuration files''')
     config_scenario_list = []
