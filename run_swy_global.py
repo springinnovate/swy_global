@@ -600,7 +600,7 @@ def _clip_and_warp(
             'working_dir': working_dir,
             'output_type': (
                 gdal.GDT_Unknown
-                if resample_method == 'near'
+                if resample_method in ['near', 'mode']
                 else gdal.GDT_Float32),
         })
 
