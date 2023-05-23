@@ -226,7 +226,8 @@ def _batch_into_watershed_subsets(
                 continue
             else:
                 # just grab the subset
-                watershed_ids = watershed_subset[2]
+                watershed_ids = watershed_subset[1]
+                LOGGER.debug(watershed_ids)
                 if isinstance(watershed_ids, int):
                     watershed_layer = [watershed_layer.GetFeature(watershed_ids)]
                 else:
@@ -563,7 +564,8 @@ def _watersheds_intersect(wgs84_bb, watersheds_path):
 
 
 def _warp_raster_stack(
-        base_raster_path_list, warped_raster_path_list,
+        base_raster_path_list,
+        warped_raster_path_list,
         resample_method_list, clip_pixel_size, target_pixel_size,
         clip_bounding_box, clip_projection_wkt, all_touched_clip,
         watershed_clip_vector_path):
@@ -596,6 +598,10 @@ def _clip_and_warp(
             'target_bb': clip_bounding_box,
             'target_projection_wkt': clip_projection_wkt,
             'working_dir': working_dir,
+            'output_type': (
+                gdal.GDT_Unknown
+                if resample_method == 'near'
+                else gdal.GDT_Float32),
         })
 
     # second, warp and mask to vector
