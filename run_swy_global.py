@@ -88,7 +88,6 @@ def _clean_workspace_worker(
                     f'removing {workspace_dir} after {count_dict[workspace_dir]} '
                     f'signals')
                 if not keep_intermediate_files:
-                    LOGGER.error(f'**************** {keep_intermediate_files} removeing {workspace_dir}')
                     shutil.rmtree(
                         os.path.join(workspace_root_dir, workspace_dir))
                 del count_dict[workspace_dir]
