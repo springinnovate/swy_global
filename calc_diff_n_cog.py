@@ -37,12 +37,13 @@ def sub_rasters(raster_a, raster_b, target_raster):
                 valid_mask &= array != nd
         result[valid_mask] = array_a[valid_mask]-array_b[valid_mask]
         result[~valid_mask] = target_nodata
+        return result
 
     geoprocessing.raster_calculator(
         [(p, 1) for p in [raster_a, raster_b]], _sub_op,
         target_raster,
         gdal.GDT_Float32,
-        target_nodata)
+        target_nodata, allow_different_blocksize=True)
 
 
 def _make_logger_callback(message, timeout=5.0):
@@ -124,7 +125,7 @@ def main():
     print(scenario_pair_list)
     os.makedirs(mask_dir, exist_ok=True)
     for scenario_id, scenario_pair in scenario_pair_list:
-        for raster_prefix in ['QF', 'B_sum']:
+        for raster_prefix in ['B_sum', 'QF']:
             path_list = []
             mask_task_list = []
             for scenario in scenario_pair:
