@@ -149,7 +149,7 @@ def _create_fid_subset(
         f'{", ".join([str(v) for v in fid_list])})')
     layer.SetAttributeFilter(attribute_filter_str)
     feature_count = layer.GetFeatureCount()
-    LOGGER.debug(f'got {feature_count} features with {attribute_filter_str}')
+    LOGGER.debug(f'got {feature_count} features')
     gpkg_driver = ogr.GetDriverByName('gpkg')
     unprojected_vector_path = '%s_wgs84%s' % os.path.splitext(
         target_vector_path)
