@@ -269,9 +269,9 @@ def _batch_into_watershed_subsets(
             watershed_bb = [watershed_envelope[i] for i in [0, 2, 1, 3]]
             # Calculate the intersection of the two polygons
             if (box(*watershed_bb).intersection(box(*global_bb)).area) <= 0:
-                LOGGER.warning(
-                    f'{watershed_bb} does not intersect {global_bb} '
-                    'so dropping')
+                # LOGGER.warning(
+                #     f'{watershed_bb} does not intersect {global_bb} '
+                #     'so dropping')
                 # drop because it's outside of the BB
                 watershed_fid_index[job_id][0].pop()
                 continue
