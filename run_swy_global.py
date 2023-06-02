@@ -242,7 +242,6 @@ def _batch_into_watershed_subsets(
         for watershed_feature in watershed_layer:
             fid = watershed_feature.GetFID()
             watershed_geom = watershed_feature.GetGeometryRef()
-            LOGGER.debug(watershed_geom.Area())
             watershed_centroid = watershed_geom.Centroid()
             epsg = geoprocessing.get_utm_zone(
                 watershed_centroid.GetX(), watershed_centroid.GetY())
@@ -289,7 +288,7 @@ def _batch_into_watershed_subsets(
                 raise ValueError(f'{job_id} already processed')
             if len(watershed_envelope_list) < 3 and area < 1e-6:
                 # it's too small to process
-                LOGGER.debug(f'TOO SMALL TO PROCESS {watershed_envelope_list} {area}')
+                #LOGGER.debug(f'TOO SMALL TO PROCESS {watershed_envelope_list} {area}')
                 continue
             job_id_set.add(job_id)
 
