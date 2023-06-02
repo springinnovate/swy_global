@@ -1,5 +1,4 @@
 """Run SWY globally."""
-import re
 from datetime import datetime
 import argparse
 import collections
@@ -8,17 +7,19 @@ import glob
 import logging
 import multiprocessing
 import os
+import re
 import shutil
 import sys
 import threading
 import time
 
-from inspring.seasonal_water_yield import seasonal_water_yield
 from ecoshard import geoprocessing
 from ecoshard import taskgraph
+from inspring.seasonal_water_yield import seasonal_water_yield
 from osgeo import gdal
 from osgeo import ogr
 from osgeo import osr
+from shapely.geometry import box
 
 gdal.UseExceptions()
 
@@ -143,10 +144,12 @@ def _create_fid_subset(
     layer = vector.GetLayer()
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(target_epsg)
-    layer.SetAttributeFilter(
+    attribute_filter_str = (
         f'"FID" in ('
         f'{", ".join([str(v) for v in fid_list])})')
+    layer.SetAttributeFilter(attribute_filter_str)
     feature_count = layer.GetFeatureCount()
+    LOGGER.debug(f'got {feature_count} features with {attribute_filter_str}')
     gpkg_driver = ogr.GetDriverByName('gpkg')
     unprojected_vector_path = '%s_wgs84%s' % os.path.splitext(
         target_vector_path)
@@ -198,7 +201,7 @@ def _batch_into_watershed_subsets(
     """
     # ensures we don't have more than 1000 watersheds per job
     task_graph = taskgraph.TaskGraph(
-        watershed_root_dir, multiprocessing.cpu_count(), 10,
+        watershed_root_dir, os.cpu_count(), 10,
         taskgraph_name='batch watersheds')
     watershed_path_area_list = []
     job_id_set = set()
@@ -230,15 +233,16 @@ def _batch_into_watershed_subsets(
                 if isinstance(watershed_ids, int):
                     watershed_layer = [watershed_layer.GetFeature(watershed_ids)]
                 else:
-                    LOGGER.error(f'these are watershed ids: {watershed_ids}')
                     watershed_layer = [
                         watershed_layer.GetFeature(fid) for fid in watershed_ids]
-                LOGGER.debug(f'getting that subset of {watershed_ids}')
+                LOGGER.debug(
+                    f'getting that subset of {watershed_ids} {watershed_layer}')
 
         # watershed layer is either the layer or a list of features
         for watershed_feature in watershed_layer:
             fid = watershed_feature.GetFID()
             watershed_geom = watershed_feature.GetGeometryRef()
+            LOGGER.debug(watershed_geom.Area())
             watershed_centroid = watershed_geom.Centroid()
             epsg = geoprocessing.get_utm_zone(
                 watershed_centroid.GetX(), watershed_centroid.GetY())
@@ -263,12 +267,11 @@ def _batch_into_watershed_subsets(
                 watershed_fid_index[job_id][0].append(fid)
             watershed_envelope = watershed_geom.GetEnvelope()
             watershed_bb = [watershed_envelope[i] for i in [0, 2, 1, 3]]
-            if (watershed_bb[0] < global_bb[0] or
-                    watershed_bb[2] > global_bb[2] or
-                    watershed_bb[1] > global_bb[3] or
-                    watershed_bb[3] < global_bb[1]):
-                # LOGGER.warning(
-                #     f'{watershed_bb} is on a dangerous boundary so dropping')
+            # Calculate the intersection of the two polygons
+            if (box(*watershed_bb).intersection(box(*global_bb)).area) <= 0:
+                LOGGER.warning(
+                    f'{watershed_bb} does not intersect {global_bb} '
+                    'so dropping')
                 # drop because it's outside of the BB
                 watershed_fid_index[job_id][0].pop()
                 continue
@@ -286,7 +289,7 @@ def _batch_into_watershed_subsets(
                 raise ValueError(f'{job_id} already processed')
             if len(watershed_envelope_list) < 3 and area < 1e-6:
                 # it's too small to process
-                #LOGGER.debug(f'TOPOO AMSKK TO PROCESS {watershed_envelope_list} {area}')
+                LOGGER.debug(f'TOO SMALL TO PROCESS {watershed_envelope_list} {area}')
                 continue
             job_id_set.add(job_id)
 
