@@ -105,23 +105,43 @@ def main():
     mask_dir = 'masked_for_diff'
     task_graph = taskgraph.TaskGraph(mask_dir, os.cpu_count(), 15)
 
+    # From IDN
     scenario_pair_list = [
-        ('diff_ph_current_baseline_rcp85_2050_10', ('wwf_ph_infra_current_impact_2050_rcp85_10', 'wwf_ph_baseline_2050_rcp85_10')),
-        ('diff_ph_current_baseline_rcp85_2050_90', ('wwf_ph_infra_current_impact_2050_rcp85_90', 'wwf_ph_baseline_2050_rcp85_90')),
-        ('diff_ph_future_baseline_rcp85_2050_10', ('wwf_ph_infra_future_2050_rcp85_10', 'wwf_ph_baseline_2050_rcp85_10')),
-        ('diff_ph_future_baseline_rcp85_2050_90', ('wwf_ph_infra_future_2050_rcp85_90', 'wwf_ph_baseline_2050_rcp85_90')),
+        ('diff_idn_current_baseline_rcp85_2050_10', ('wwf_idn_infra_current_impact_2050_rcp85_10', 'wwf_idn_baseline_2050_rcp85_10')),
+        ('diff_idn_current_baseline_rcp85_2050_90', ('wwf_idn_infra_current_impact_2050_rcp85_90', 'wwf_idn_baseline_2050_rcp85_90')),
+        ('diff_idn_future_baseline_rcp85_2050_10', ('wwf_idn_infra_future_2050_rcp85_10', 'wwf_idn_baseline_2050_rcp85_10')),
+        ('diff_idn_future_baseline_rcp85_2050_90', ('wwf_idn_infra_future_2050_rcp85_90', 'wwf_idn_baseline_2050_rcp85_90')),
         ]
 
     previously_calculated_diff = {
-        ('B_sum', 'diff_ph_current_baseline_rcp85_2050_10'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_current_infra_baseline_Bsum_wwf_PH_md5_a70032.tif",
-        ('B_sum', 'diff_ph_current_baseline_rcp85_2050_90'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_current_infra_baseline_Bsum_wwf_PH_md5_a70032.tif",
-        ('B_sum', 'diff_ph_future_baseline_rcp85_2050_10'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_future_infra_baseline_Bsum_wwf_PH_md5_630b42.tif",
-        ('B_sum', 'diff_ph_future_baseline_rcp85_2050_90'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_future_infra_baseline_Bsum_wwf_PH_md5_630b42.tif",
-        ('QF', 'diff_ph_current_baseline_rcp85_2050_10'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_current_infra_baseline_QF_wwf_PH_md5_188dd7.tif",
-        ('QF', 'diff_ph_current_baseline_rcp85_2050_90'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_current_infra_baseline_QF_wwf_PH_md5_188dd7.tif",
-        ('QF', 'diff_ph_future_baseline_rcp85_2050_10'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_future_infra_baseline_QF_wwf_PH_md5_b9cf45.tif",
-        ('QF', 'diff_ph_future_baseline_rcp85_2050_90'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_future_infra_baseline_QF_wwf_PH_md5_b9cf45.tif",
+        ('B_sum', 'diff_idn_current_baseline_rcp85_2050_10'): r"D:\repositories\wwf-sipa\cogs_IDN\upload\cog_diff_current_infra_baseline_Bsum_wwf_IDN_md5_cc79b3.tif",
+        ('B_sum', 'diff_idn_current_baseline_rcp85_2050_90'): r"D:\repositories\wwf-sipa\cogs_IDN\upload\cog_diff_current_infra_baseline_Bsum_wwf_IDN_md5_cc79b3.tif",
+        ('B_sum', 'diff_idn_future_baseline_rcp85_2050_10'): r"D:\repositories\wwf-sipa\cogs_IDN\upload\cog_diff_future_infra_baseline_Bsum_wwf_IDN_md5_000b1a.tif",
+        ('B_sum', 'diff_idn_future_baseline_rcp85_2050_90'): r"D:\repositories\wwf-sipa\cogs_IDN\upload\cog_diff_future_infra_baseline_Bsum_wwf_IDN_md5_000b1a.tif",
+        ('QF', 'diff_idn_current_baseline_rcp85_2050_10'): r"D:\repositories\wwf-sipa\cogs_IDN\upload\cog_diff_current_infra_baseline_QF_wwf_IDN_md5_880bf3.tif",
+        ('QF', 'diff_idn_current_baseline_rcp85_2050_90'): r"D:\repositories\wwf-sipa\cogs_IDN\upload\cog_diff_current_infra_baseline_QF_wwf_IDN_md5_880bf3.tif",
+        ('QF', 'diff_idn_future_baseline_rcp85_2050_10'): r"D:\repositories\wwf-sipa\cogs_IDN\upload\cog_diff_future_infra_baseline_QF_wwf_IDN_md5_0c9963.tif",
+        ('QF', 'diff_idn_future_baseline_rcp85_2050_90'): r"D:\repositories\wwf-sipa\cogs_IDN\upload\cog_diff_future_infra_baseline_QF_wwf_IDN_md5_0c9963.tif",
     }
+
+    # From PH
+    # scenario_pair_list = [
+    #     ('diff_ph_current_baseline_rcp85_2050_10', ('wwf_ph_infra_current_impact_2050_rcp85_10', 'wwf_ph_baseline_2050_rcp85_10')),
+    #     ('diff_ph_current_baseline_rcp85_2050_90', ('wwf_ph_infra_current_impact_2050_rcp85_90', 'wwf_ph_baseline_2050_rcp85_90')),
+    #     ('diff_ph_future_baseline_rcp85_2050_10', ('wwf_ph_infra_future_2050_rcp85_10', 'wwf_ph_baseline_2050_rcp85_10')),
+    #     ('diff_ph_future_baseline_rcp85_2050_90', ('wwf_ph_infra_future_2050_rcp85_90', 'wwf_ph_baseline_2050_rcp85_90')),
+    #     ]
+
+    # previously_calculated_diff = {
+    #     ('B_sum', 'diff_ph_current_baseline_rcp85_2050_10'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_current_infra_baseline_Bsum_wwf_PH_md5_a70032.tif",
+    #     ('B_sum', 'diff_ph_current_baseline_rcp85_2050_90'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_current_infra_baseline_Bsum_wwf_PH_md5_a70032.tif",
+    #     ('B_sum', 'diff_ph_future_baseline_rcp85_2050_10'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_future_infra_baseline_Bsum_wwf_PH_md5_630b42.tif",
+    #     ('B_sum', 'diff_ph_future_baseline_rcp85_2050_90'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_future_infra_baseline_Bsum_wwf_PH_md5_630b42.tif",
+    #     ('QF', 'diff_ph_current_baseline_rcp85_2050_10'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_current_infra_baseline_QF_wwf_PH_md5_188dd7.tif",
+    #     ('QF', 'diff_ph_current_baseline_rcp85_2050_90'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_current_infra_baseline_QF_wwf_PH_md5_188dd7.tif",
+    #     ('QF', 'diff_ph_future_baseline_rcp85_2050_10'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_future_infra_baseline_QF_wwf_PH_md5_b9cf45.tif",
+    #     ('QF', 'diff_ph_future_baseline_rcp85_2050_90'): r"D:\repositories\wwf-sipa\cogs_PH\upload\cog_diff_future_infra_baseline_QF_wwf_PH_md5_b9cf45.tif",
+    # }
     print(scenario_pair_list)
     os.makedirs(mask_dir, exist_ok=True)
     for scenario_id, scenario_pair in scenario_pair_list:
@@ -147,7 +167,7 @@ def main():
                         'near'),
                     kwargs={
                         'vector_mask_options': {
-                            'mask_vector_path': r"D:\repositories\wwf-sipa\data\admin_boundaries\PH_outline.gpkg"},
+                            'mask_vector_path': r"D:\repositories\wwf-sipa\data\admin_boundaries\IDN_outline.gpkg"},
                         'working_dir': mask_dir},
                     target_path_list=[masked_raster_path],
                     task_name=f'mask {masked_raster_path}')
