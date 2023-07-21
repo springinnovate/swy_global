@@ -734,25 +734,27 @@ def _execute_swy_job(
         watershed_bb, target_projection_wkt, osr.SRS_WKT_WGS84_LAT_LONG)
 
     if model_args['user_defined_rain_events_path']:
-        potential_rain_events_path_list = list(
-            glob.glob(model_args['user_defined_rain_events_path']))
-        if len(potential_rain_events_path_list) != 12:
-            raise ValueError(
-                f'user supplied user defined rain events path as '
-                f'{model_args["user_defined_rain_events_path"]} but did not '
-                f'match excactly 12 files, instead matched this:  '
-                f'{potential_rain_events_path_list}')
         local_rain_dir = os.path.join(clipped_data_dir, 'local_rain_events')
         os.makedirs(os.path.join(local_rain_dir), exist_ok=True)
         for month_id in range(12, 0, -1):
-            for index, path in enumerate(potential_rain_events_path_list):
-                if path.find(f'{month_id}.tif') >= 0:
-                    base_raster_path_list.append(path)
-                    warped_raster_path_list.append(
-                        os.path.join(local_rain_dir, os.path.basename(path)))
-                    potential_rain_events_path_list.pop(index)
-                    resample_method_list.append('near')
-                    break
+            # Generate patterns for month with and without leading zero
+            matches = glob.glob(
+                model_args['user_defined_rain_events_path'].format(
+                    month=month_id))
+            matches += glob.glob(
+                model_args['user_defined_rain_events_path'].format(
+                    month=f"{month_id:02d}"))
+            if matches:
+                base_raster_path_list.append(matches[0])
+                warped_raster_path_list.append(os.path.join(
+                    local_rain_dir, f'{month_id}.tif'))
+                resample_method_list.append('near')
+            else:
+                raise ValueError(
+                    f"could not find a match in "
+                    f"{model_args['user_defined_rain_events_path']} for month "
+                    f"{month_id}")
+
         # point to new projected coords
         model_args['user_defined_rain_events_path'] = os.path.join(
             local_rain_dir, os.path.basename(
