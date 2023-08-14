@@ -9,7 +9,6 @@ import multiprocessing
 import os
 import re
 import shutil
-import sys
 import threading
 import time
 
@@ -747,9 +746,12 @@ def _execute_swy_job(
             if matches:
                 base_raster_path_list.append(matches[0])
                 warped_raster_path_list.append(os.path.join(
-                    local_rain_dir, f'{month_id}.tif'))
+                    local_rain_dir, os.path.basename(
+                        model_args['user_defined_rain_events_path'].format(
+                            month=f"{month_id:02d}"))))
                 resample_method_list.append('near')
             else:
+                LOGGER.exception('something bad happened')
                 raise ValueError(
                     f"could not find a match in "
                     f"{model_args['user_defined_rain_events_path']} for month "
