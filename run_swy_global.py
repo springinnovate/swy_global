@@ -42,7 +42,7 @@ logging.getLogger('inspring.seasonal_water_yield').setLevel(logging.WARNING)
 
 LOGGER = logging.getLogger(__name__)
 
-GLOBAL_INI_PATH = 'swy_global.ini'
+GLOBAL_INI_PATH = os.path.join(os.path.dirname(__file__), 'swy_global.ini')
 
 N_TO_BUFFER_STITCH = 10
 
