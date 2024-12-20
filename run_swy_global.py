@@ -461,8 +461,11 @@ def _run_swy(
     stitch_worker_list = []
     multiprocessing_manager = multiprocessing.Manager()
     signal_done_queue = multiprocessing_manager.Queue()
+    rasters_to_stitch_set = set()
     for local_result_path, global_stitch_raster_path in \
             target_stitch_raster_map.items():
+        if global_stitch_raster_path in rasters_to_stitch_set:
+            raise ValueError(f'{global_stitch_raster_path} is stitched more than once')
         if result_suffix is not None:
             global_stitch_raster_path = (
                 f'%s_{result_suffix}%s' % os.path.splitext(
