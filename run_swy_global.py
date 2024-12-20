@@ -132,7 +132,8 @@ def _process_scenario_ini(scenario_config_path):
             if not os.path.exists(possible_path) and possible_path != '':
                 LOGGER.warning(
                     f'since "{key}" ends in _PATH, expected file at "{possible_path}" '
-                    f'but file not found')
+                    'but file not found, this might be fine and can be '
+                    'ignored  if this is a pattern match for monthly data')
 
     return scenario_config, scenario_id
 
